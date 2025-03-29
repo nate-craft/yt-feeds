@@ -1,8 +1,10 @@
+use core::panic;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::{io, process, sync::mpsc};
 
+use config::Config;
 use crossterm::execute;
 use crossterm::{
     cursor,
@@ -14,6 +16,7 @@ use views::{feed_view, home_view, player_view, search_view};
 use yt::{Channel, Channels};
 
 mod cache;
+mod config;
 mod loading;
 mod page;
 mod search;
@@ -30,6 +33,16 @@ pub struct AppState {
 }
 
 fn main() {
+    let config = match Config::load_or_default() {
+        Ok(loaded) => loaded,
+        Err(err) => {
+            panic!(
+                "Could not retrieve local config directory. \nError: {:?}",
+                err
+            );
+        }
+    };
+
     let channels_cached = cache::fetch_cached_channels();
 
     let mut state = if let Some(channels_cached) = channels_cached {
@@ -56,6 +69,7 @@ fn main() {
             .iter()
             .map(|channel| channel.into())
             .collect(),
+        config.video_count,
     );
 
     try_cache_channels(&state.channels);
@@ -83,6 +97,7 @@ fn main() {
                         .iter()
                         .map(|channel| channel.into())
                         .collect(),
+                    config.video_count,
                 );
                 check_updates(&rx, &mut state.channels, true);
                 match last_view.deref() {

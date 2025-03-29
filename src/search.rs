@@ -39,7 +39,7 @@ pub fn fetch_channel<'a>(channel: &str, queries: usize) -> Vec<ChannelInfo> {
         .arg("--dump-json")
         .arg(format!("ytsearch{}:{}", queries, channel))
         .output()
-        .unwrap()
+        .expect("Could not find command yt-dlp")
         .stdout;
 
     String::from_utf8_lossy(&channel_json_bytes)

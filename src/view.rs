@@ -34,4 +34,5 @@ pub enum Error {
     JsonError,
     ChannelParsing,
     VideoParsing,
+    TomlError,
 }

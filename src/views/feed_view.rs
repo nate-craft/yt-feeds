@@ -13,7 +13,15 @@ use crate::{
 
 pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message {
     let channel = channels.channel(channel_index).unwrap();
-    let mut page_videos = Page::new(10, channel.videos.len());
+
+    let videos: Vec<(usize, &Video)> = channel
+        .videos
+        .iter()
+        .enumerate()
+        .sorted_by(|a, b| b.1.upload.cmp(&a.1.upload))
+        .collect();
+
+    let mut page = Page::new(10, videos.len());
     clear_screen();
 
     loop {
@@ -24,12 +32,11 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
             &channel.name.cyan().bold(),
             "'s Feed".cyan().bold()
         );
-        page_videos
-            .current_page(&channel.videos)
+        page.current_page(&videos)
             .iter()
             .enumerate()
-            .map(|(i, video)| (i + page_videos.current_index, video))
-            .for_each(|(i, video)| {
+            .map(|(i, video)| (i + page.current_index, video))
+            .for_each(|(i, (_, video))| {
                 if video.watched {
                     println!(
                         "{}. {}\n   {}\n",
@@ -66,13 +73,13 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
         } else if input.eq_ignore_ascii_case("r") {
             return Message::Refresh(View::FeedChannel(channel_index));
         } else if input.eq_ignore_ascii_case("n") {
-            page_videos.next_page();
+            page.next_page();
         } else if input.eq_ignore_ascii_case("p") {
-            page_videos.prev_page();
+            page.prev_page();
         } else {
             match &input.parse::<usize>() {
                 Ok(index) => {
-                    if page_videos.item_is_at_index(*index) {
+                    if page.item_is_at_index(*index) {
                         return Message::Play(VideoIndex {
                             channel_index: channel_index.0,
                             video_index: *index,
@@ -113,22 +120,22 @@ pub fn show_mixed(channels: &Channels) -> Message {
             .iter()
             .enumerate()
             .map(|(i, video)| (i + page.current_index, video))
-            .for_each(|(i, entry)| {
-                if entry.3.watched {
+            .for_each(|(i, (_, _, channel, video))| {
+                if video.watched {
                     println!(
                         "{}. {}\n   {} • {}\n",
                         i.to_string().green(),
-                        entry.3.title.bright_yellow().underline(),
-                        entry.2,
-                        time_since_formatted(entry.3.upload)
+                        video.title.bright_yellow().underline(),
+                        channel,
+                        time_since_formatted(video.upload)
                     )
                 } else {
                     println!(
                         "{}. {}\n   {} • {}\n",
                         i.to_string().green(),
-                        entry.3.title.yellow(),
-                        entry.2,
-                        time_since_formatted(entry.3.upload)
+                        video.title.yellow(),
+                        channel,
+                        time_since_formatted(video.upload)
                     )
                 }
             });

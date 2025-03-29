@@ -13,11 +13,11 @@ use crate::{
 };
 use crate::{yt, Channel};
 
-pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>) {
+pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_count: u32) {
     channels.into_iter().for_each(|channel| {
         let tx = tx.clone();
         thread::spawn(move || {
-            let feed = yt::feed_channel(&channel.id, 30);
+            let feed = yt::feed_channel(&channel.id, video_count);
             match feed {
                 Ok(feed) => {
                     tx.send(Channel::new(channel.name, channel.id, feed))
@@ -48,7 +48,8 @@ pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>) {
 pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: bool) {
     if blocking {
         let mut updated = 0;
-        let mut forward = false;
+        let mut step = 0;
+        let steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"];
 
         // block till all channels are refreshed
         while updated < channels.len() {
@@ -77,18 +78,17 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
             clear_screen();
             println!("{}", "\nRefreshing Channels\n".cyan().bold());
             println!(
-                "{} {}\n",
+                "{} {}  {}\n",
                 "Channels Updated:".green(),
-                updated.to_string().yellow()
+                updated.to_string().yellow(),
+                steps[step]
             );
 
-            if forward {
-                println!("↺");
-            } else {
-                println!("↻");
+            step = step + 1;
+            if step > steps.len() - 1 {
+                step = 0;
             }
-            forward = !forward;
-            thread::sleep(Duration::from_millis(500));
+            thread::sleep(Duration::from_millis(450));
         }
     } else {
         while let Ok(fetched) = rx.try_recv() {

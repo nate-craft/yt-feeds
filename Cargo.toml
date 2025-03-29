@@ -1,5 +1,5 @@
 [package]
-name = "yt-feed"
+name = "yt-feeds"
 version = "0.1.0"
 edition = "2024"
 
@@ -11,3 +11,4 @@ itertools = "0.14.0"
 dirs = "6.0.0"
 chrono = { version = "0.4.40", features = ["serde"] }
 crossterm = "0.28.1"
+toml = "0.8.20"

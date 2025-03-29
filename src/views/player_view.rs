@@ -30,7 +30,6 @@ fn play(video: &Video) -> Result<(), Error> {
         || {
             Command::new("mpv")
                 .arg("--profile=fast")
-                .arg("--hwdec=vaapi")
                 .arg(&video.url)
                 .output()
                 .map(|_| ())
