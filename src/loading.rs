@@ -18,7 +18,7 @@ where
         while let Err(_) = rx.recv_timeout(Duration::from_millis(150)) {
             clear_screen();
             print_fn();
-            println!(" {}", steps[step]);
+            println!("  {}", steps[step]);
             step = step + 1;
             if step > steps.len() - 1 {
                 step = 0;

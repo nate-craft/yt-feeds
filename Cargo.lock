@@ -739,7 +739,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "yt-feed"
+name = "yt-feeds"
 version = "0.1.0"
 dependencies = [
  "chrono",

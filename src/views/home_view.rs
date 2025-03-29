@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub fn show(channels: &Channels) -> Message {
-    let mut page = Page::new(10, channels.len());
+    let mut page = Page::new(channels.len(), channels.len(), 1);
     clear_screen();
 
     loop {

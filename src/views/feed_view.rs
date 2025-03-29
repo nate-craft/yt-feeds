@@ -21,7 +21,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
         .sorted_by(|a, b| b.1.upload.cmp(&a.1.upload))
         .collect();
 
-    let mut page = Page::new(10, videos.len());
+    let mut page = Page::new(10, videos.len(), 3);
     clear_screen();
 
     loop {
@@ -55,7 +55,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
             });
         println!(
             "{}",
-            "\nOptions: [(p)revious, (n)ext, (r)efresh, (c)hannels, (u)nsubscribe, (q)uit]"
+            "Options: [(p)revious, (n)ext, (r)efresh, (c)hannels, (u)nsubscribe, (q)uit]"
                 .green()
                 .italic()
         );
@@ -111,7 +111,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
         .sorted_by(|a, b| b.3.upload.cmp(&a.3.upload))
         .collect();
 
-    let mut page = Page::new(10, videos.len());
+    let mut page = Page::new(10, videos.len(), 3);
 
     loop {
         let mut input = String::new();
@@ -142,7 +142,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
 
         println!(
             "{}",
-            "\nOptions: [(p)revious, (n)ext, r(efresh), c(hannels), q(uit)]"
+            "Options: [(p)revious, (n)ext, r(efresh), c(hannels), q(uit)]"
                 .green()
                 .italic()
         );

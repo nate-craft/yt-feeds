@@ -38,7 +38,7 @@ pub fn show(channels: &Channels) -> Message {
         },
     );
 
-    let mut page = Page::new(10, results.len());
+    let mut page = Page::new(10, results.len(), 1);
     clear_screen();
 
     loop {

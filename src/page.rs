@@ -1,5 +1,7 @@
 use std::cmp::{max, min};
 
+use crossterm::terminal;
+
 pub struct Page {
     pub current_index: usize,
     pub count_per_page: usize,
@@ -7,10 +9,13 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn new(count_per_page: usize, count_total: usize) -> Page {
+    pub fn new(count_per_page: usize, count_total: usize, lines_per_element: usize) -> Page {
         Page {
             current_index: 0,
-            count_per_page: min(count_total, count_per_page),
+            count_per_page: min(
+                min(count_total, count_per_page),
+                terminal::size().unwrap().1 as usize / lines_per_element - 4,
+            ),
             count_total,
         }
     }
