@@ -8,7 +8,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::view::Error;
+use crate::{cache::WatchHistory, view::Error};
 
 #[derive(Debug, Clone)]
 pub struct Channel {
@@ -32,6 +32,7 @@ pub struct Video {
     pub url: String,
     pub watched: bool,
     pub upload: DateTime<Local>,
+    pub progress_seconds: Option<i32>,
 }
 
 #[derive(Default)]
@@ -84,6 +85,24 @@ impl Channels {
 
     pub fn has_channel(&self, channel_id: &str) -> bool {
         self.channel_by_id(channel_id).is_some()
+    }
+
+    pub fn add_history(&mut self, history: &[WatchHistory]) {
+        history.iter().for_each(|history| {
+            self.iter_mut().for_each(|channel| {
+                channel.videos.iter_mut().for_each(|video| {
+                    if video
+                        .url
+                        .split("/")
+                        .last()
+                        .map(|id| id == history.id)
+                        .unwrap_or(false)
+                    {
+                        video.progress_seconds = Some(history.progress_seconds);
+                    }
+                });
+            });
+        });
     }
 }
 
@@ -193,6 +212,7 @@ impl TryFrom<VideoAccumulator> for Video {
                 value.id.ok_or(Error::VideoParsing)?
             ),
             watched: false,
+            progress_seconds: None,
         })
     }
 }

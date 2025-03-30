@@ -39,17 +39,19 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
             .for_each(|(i, (_, video))| {
                 if video.watched {
                     println!(
-                        "{}. {}\n   {}\n",
+                        "{}. {}\n   {} • {}s Watched\n",
                         i.to_string().green(),
                         video.title.bright_yellow().underline(),
-                        time_since_formatted(video.upload)
+                        time_since_formatted(video.upload),
+                        video.progress_seconds.unwrap_or(0).to_string()
                     )
                 } else {
                     println!(
-                        "{}. {}\n   {}\n",
+                        "{}. {}\n   {} • {} Watched\n",
                         i.to_string().green(),
                         video.title.yellow(),
-                        time_since_formatted(video.upload)
+                        time_since_formatted(video.upload),
+                        video.progress_seconds.unwrap_or(0).to_string()
                     );
                 }
             });
@@ -123,19 +125,21 @@ pub fn show_mixed(channels: &Channels) -> Message {
             .for_each(|(i, (_, _, channel, video))| {
                 if video.watched {
                     println!(
-                        "{}. {}\n   {} • {}\n",
+                        "{}. {}\n   {} • {} • {}s Watched\n",
                         i.to_string().green(),
                         video.title.bright_yellow().underline(),
                         channel,
-                        time_since_formatted(video.upload)
+                        time_since_formatted(video.upload),
+                        video.progress_seconds.unwrap_or(0).to_string()
                     )
                 } else {
                     println!(
-                        "{}. {}\n   {} • {}\n",
+                        "{}. {}\n   {} • {} • {}s Watched\n",
                         i.to_string().green(),
                         video.title.yellow(),
                         channel,
-                        time_since_formatted(video.upload)
+                        time_since_formatted(video.upload),
+                        video.progress_seconds.unwrap_or(0).to_string()
                     )
                 }
             });

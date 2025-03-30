@@ -119,7 +119,7 @@ pub fn show(channels: &Channels) -> Message {
                     ))
                 }
                 Err(err) => match err {
-                    Error::ChannelParsing => {
+                    Error::HistoryParsing => {
                         eprintln!(
                             "{}: '{}'",
                             "Could not find videos for channel", channel.name

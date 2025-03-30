@@ -1,13 +1,13 @@
-use std::{
-    fs::{self, File},
-    io::{BufReader, BufWriter},
-    path::{Path, PathBuf},
-};
-
 use crate::{
     view::Error,
     yt::{Channel, ChannelInfo, Video},
     Channels,
+};
+
+use std::{
+    fs::{self, File},
+    io::{BufReader, BufWriter, Read},
+    path::{Path, PathBuf},
 };
 
 impl TryFrom<&ChannelInfo> for Channel {
@@ -103,6 +103,74 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
     } else {
         Err(Error::FileBadAccess)
     }
+}
+
+#[derive(Debug)]
+pub struct WatchHistory {
+    pub id: String,
+    pub progress_seconds: i32,
+}
+
+#[derive(Default)]
+struct WatchHistoryAccumulator {
+    id: Option<String>,
+    progress: Option<i32>,
+}
+
+impl WatchHistoryAccumulator {
+    fn accumulate(mut self, line: &str) -> WatchHistoryAccumulator {
+        if line.starts_with("start") {
+            self.progress = line
+                .split("=")
+                .last()
+                .and_then(|string| string.parse::<f32>().ok().map(|i| i as i32));
+        } else if line.starts_with("#") {
+            self.id = line.split("/").last().map(|str| str.to_owned());
+        }
+        self
+    }
+}
+
+impl TryFrom<WatchHistoryAccumulator> for WatchHistory {
+    type Error = Error;
+    fn try_from(value: WatchHistoryAccumulator) -> Result<Self, Error> {
+        Ok(WatchHistory {
+            id: value.id.ok_or(Error::HistoryParsing)?,
+            progress_seconds: value.progress.ok_or(Error::HistoryParsing)?,
+        })
+    }
+}
+
+pub fn fetch_watch_history() -> Result<Vec<WatchHistory>, Error> {
+    let Some(root) = dirs::state_dir() else {
+        return Err(Error::FileBadAccess);
+    };
+
+    let dir = root.join("mpv/").join("watch_later/");
+
+    if !Path::exists(&dir) {
+        return Err(Error::FileBadAccess);
+    }
+
+    let files = dir.read_dir().map_err(|_| Error::FileBadAccess)?;
+
+    Ok(files
+        .into_iter()
+        .filter_map(|path| path.ok())
+        .filter_map(|entry| File::open(entry.path()).ok())
+        .filter_map(|mut file| {
+            let mut raw = String::new();
+            file.read_to_string(&mut raw).ok();
+            raw.trim()
+                .lines()
+                .fold(
+                    WatchHistoryAccumulator::default(),
+                    WatchHistoryAccumulator::accumulate,
+                )
+                .try_into()
+                .ok()
+        })
+        .collect())
 }
 
 pub fn data_directory() -> Result<PathBuf, Error> {

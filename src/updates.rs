@@ -24,7 +24,7 @@ pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_coun
                         .unwrap();
                 }
                 Err(err) => match err {
-                    Error::ChannelParsing => {
+                    Error::HistoryParsing => {
                         eprintln!(
                             "{}: '{}'",
                             "Could not find videos for channel", channel.name

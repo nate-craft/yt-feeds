@@ -35,4 +35,5 @@ pub enum Error {
     ChannelParsing,
     VideoParsing,
     TomlError,
+    HistoryParsing,
 }

@@ -33,6 +33,10 @@ pub struct AppState {
 }
 
 fn main() {
+    let mut history = cache::fetch_watch_history().unwrap_or(Vec::new());
+
+    println!("{:?}", history);
+
     let config = match Config::load_or_default() {
         Ok(loaded) => loaded,
         Err(err) => {
@@ -58,6 +62,8 @@ fn main() {
             root_dir: cache::data_directory().ok(),
         }
     };
+
+    state.channels.add_history(&history);
 
     let (tx, rx) = mpsc::channel::<Channel>();
 
@@ -86,7 +92,11 @@ fn main() {
             View::MixedFeed => feed_view::show_mixed(&state.channels),
             View::Search => search_view::show(&state.channels),
             View::Play(video_index, ref last_view) => {
-                player_view::show(&state.channels, video_index, last_view.as_ref())
+                let next = player_view::show(&state.channels, video_index, last_view.as_ref());
+                //TODO: add optimization to only add history for specific video / on finish playing
+                history = cache::fetch_watch_history().unwrap_or(Vec::new());
+                state.channels.add_history(&history);
+                next
             }
             View::Refreshing(ref last_view) => {
                 fetch_updates(
