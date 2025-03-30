@@ -47,7 +47,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
                     )
                 } else {
                     println!(
-                        "{}. {}\n   {} • {} Watched\n",
+                        "{}. {}\n   {} • {}s Watched\n",
                         i.to_string().green(),
                         video.title.yellow(),
                         time_since_formatted(video.upload),
