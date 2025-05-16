@@ -31,7 +31,7 @@ YT-Feeds requires mpv and yt-dlp to be installed in order to function:
 
 <details><summary>Linux Runtime Dependencies</summary>
 
-### Fedora/RHEL-Based Systems
+#### Fedora/RHEL-Based Systems
 ```sh
 sudo dnf install yt-dlp mpv
 ```
