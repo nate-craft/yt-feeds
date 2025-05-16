@@ -2,10 +2,10 @@ use std::rc::Rc;
 
 use crate::yt::{Channel, ChannelIndex, VideoIndex};
 
-pub type LastView = Rc<View>;
+pub type LastView = Rc<ViewPage>;
 
 #[derive(Clone)]
-pub enum View {
+pub enum ViewPage {
     Home,
     FeedChannel(ChannelIndex),
     MixedFeed,
@@ -23,14 +23,14 @@ pub enum Message {
     Unsubscribe(ChannelIndex),
     Search,
     Quit,
-    Refresh(View),
+    Refresh(ViewPage),
     Home,
 }
 
 #[derive(Debug)]
 pub enum Error {
     FileBadAccess,
-    CommandFailed,
+    CommandFailed(String),
     JsonError,
     ChannelParsing,
     VideoParsing,

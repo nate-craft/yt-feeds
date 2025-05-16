@@ -130,6 +130,10 @@ impl Deref for ChannelIndex {
 
 impl Channel {
     pub fn new(name: impl Into<String>, id: impl Into<String>, videos: Vec<Video>) -> Channel {
+        let videos = videos
+            .into_iter()
+            .sorted_by(|a, b| b.upload.cmp(&a.upload))
+            .collect();
         Channel {
             name: name.into(),
             id: id.into(),
@@ -186,7 +190,7 @@ impl VideoAccumulator {
             self.id = Some(value.as_str().unwrap().to_owned());
         } else if key.eq("timestamp") {
             self.upload = Some(
-                DateTime::from_timestamp(value.as_i64().unwrap(), 0)
+                DateTime::from_timestamp(value.as_i64().unwrap_or(0), 0)
                     .unwrap()
                     .with_timezone(&Local),
             );
@@ -228,7 +232,7 @@ pub fn feed_channel(channel: &str, count: u32) -> Result<Vec<Video>, Error> {
         .arg("--extractor-args")
         .arg("youtubetab:approximate_date")
         .output()
-        .map_err(|_| Error::CommandFailed)?;
+        .map_err(|e| Error::CommandFailed(e.to_string()))?;
 
     let videos: Vec<Video> = String::from_utf8_lossy(&cmd.stdout)
         .to_string()

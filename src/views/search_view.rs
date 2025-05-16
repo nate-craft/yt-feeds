@@ -1,36 +1,28 @@
-use std::io::{self, Write};
-
 use colored::Colorize;
 
 use crate::{
-    clear_screen,
-    loading::while_loading,
+    loading::run_while_loading,
     page::Page,
     search::fetch_channel,
     view::{Error, Message},
     yt::{feed_channel, Channel, Channels},
 };
 
+use super::View;
+
 pub fn show(channels: &Channels) -> Message {
-    clear_screen();
-    println!("{}", "\nNew Subscriptions\n".cyan().bold());
-    println!("{}", "Options: [b(ack), q(uit)]\n".green().italic());
-    print!("{} ", "Search:".green());
-    io::stdout().flush().unwrap();
+    let view = View::new("New Subscriptions", "b(ack), q(uit)", "Search:");
+    let input = view.show().to_lowercase();
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
-    input = input.trim().to_owned();
-
-    if input.eq_ignore_ascii_case("q") {
+    if input.eq("q") {
         return Message::Quit;
-    } else if input.eq_ignore_ascii_case("b") {
+    } else if input.eq("b") {
         return Message::Home;
     }
 
     let input_clone = input.clone();
 
-    let results = while_loading(
+    let results = run_while_loading(
         || fetch_channel(&input, 20),
         move || {
             println!("{}", "\nNew Subscriptions\n".cyan().bold());
@@ -39,100 +31,89 @@ pub fn show(channels: &Channels) -> Message {
     );
 
     let mut page = Page::new(10, results.len(), 1);
-    clear_screen();
+
+    let mut view = View::new(
+        "New Subscriptions",
+        "(p)revious, (n)ext, b(ack), q(uit)",
+        "Search:",
+    );
 
     loop {
-        println!("{}", "\nNew Subscriptions\n".cyan().bold());
+        view.clear_content();
 
-        input.clear();
         results
             .iter()
             .enumerate()
             .map(|(i, channel)| (i + page.current_index, channel))
             .for_each(|(i, channel)| {
-                println!(
+                view.add_line(format!(
                     "{}. {} ({})",
                     i.to_string().green(),
                     channel.name.yellow(),
                     channel.id.yellow()
-                );
+                ));
             });
 
-        println!(
-            "{}",
-            "\nOptions: [(p)revious, (n)ext, b(ack), q(uit)]"
-                .green()
-                .italic()
-        );
-        io::stdin().read_line(&mut input).unwrap();
-        input = input.trim().to_owned();
-
-        if input.eq_ignore_ascii_case("q") {
-            return Message::Quit;
-        } else if input.eq_ignore_ascii_case("n") {
-            clear_screen();
-            page.next_page();
-        } else if input.eq_ignore_ascii_case("p") {
-            clear_screen();
-            page.prev_page();
-        } else if input.eq_ignore_ascii_case("b") {
-            return Message::Home;
-        } else {
-            let Ok(index) = input.parse::<usize>() else {
-                clear_screen();
-                println!("{} {}", input.red(), "is not a valid option!".red());
-                continue;
-            };
-
-            let Some(channel) = page.item_at_index(&results, index) else {
-                clear_screen();
-                println!("{} {}", input.red(), "is not a valid option!".red());
-                continue;
-            };
-
-            if channels.has_channel(&channel.id) {
-                clear_screen();
-                println!(
-                    "{} {}{}",
-                    "You are already subscribed to".red(),
-                    channel.name.red(),
-                    "!".red()
-                );
-                continue;
+        match view.show().to_lowercase().as_str() {
+            "q" => return Message::Quit,
+            "b" => return Message::Search,
+            "n" => {
+                page.next_page();
+                view.clear_error();
             }
+            "p" => {
+                page.prev_page();
+                view.clear_error();
+            }
+            input => {
+                let Ok(index) = input.parse::<usize>() else {
+                    view.set_error(format!("{} is not a valid option!", input));
+                    continue;
+                };
 
-            let name = channel.name.clone();
-            let feed = while_loading(
-                || feed_channel(&channel.id, 30),
-                move || {
-                    println!("{}", "\nNew Subscriptions\n".cyan().bold());
-                    print!("{} {}", "Downloading videos for".green(), name.yellow());
-                },
-            );
+                let Some(channel) = page.item_at_index(&results, index) else {
+                    view.set_error(format!("{} is not a valid option!", input));
+                    continue;
+                };
 
-            match feed {
-                Ok(feed) => {
-                    return Message::Subscribe(Channel::new(
-                        channel.name.clone(),
-                        channel.id.clone(),
-                        feed,
-                    ))
+                if channels.has_channel(&channel.id) {
+                    view.set_error(format!("You are already subscribed to {}!", channel.name));
+                    continue;
                 }
-                Err(err) => match err {
-                    Error::HistoryParsing => {
-                        eprintln!(
-                            "{}: '{}'",
-                            "Could not find videos for channel", channel.name
-                        );
+
+                let name = channel.name.clone();
+                let feed = run_while_loading(
+                    || feed_channel(&channel.id, 30),
+                    move || {
+                        println!("{}", "\nNew Subscriptions\n".cyan().bold());
+                        print!("{} {}", "Downloading videos for".green(), name.yellow());
+                    },
+                );
+
+                match feed {
+                    Ok(feed) => {
+                        return Message::Subscribe(Channel::new(
+                            channel.name.clone(),
+                            channel.id.clone(),
+                            feed,
+                        ))
                     }
-                    Error::CommandFailed => {
-                        eprintln!(
-                            "{}: '{}' with command 'yt-dlp'",
-                            "Could not load in feed for channel", channel.id,
-                        );
-                    }
-                    _ => {}
-                },
+                    Err(err) => match err {
+                        Error::HistoryParsing => {
+                            view.set_error(format!(
+                                "{}: '{}'",
+                                "Could not find videos for channel", channel.name
+                            ));
+                        }
+                        Error::CommandFailed(e) => {
+                            view.set_error(format!(
+                                "Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}",
+                                channel.id, e
+                            ));
+                        }
+                        _ => {}
+                    },
+                }
             }
         }
     }

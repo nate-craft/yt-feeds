@@ -1,104 +1,86 @@
-use std::io;
-
 use colored::Colorize;
 use itertools::Itertools;
 
 use crate::{
     clear_screen,
     page::Page,
-    utilities::time_since_formatted,
-    view::{Message, View},
+    utilities::{time_formatted_short, time_since_formatted},
+    view::{Message, ViewPage},
     yt::{ChannelIndex, Channels, Video, VideoIndex},
 };
+
+use super::View;
 
 pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message {
     let channel = channels.channel(channel_index).unwrap();
 
-    let videos: Vec<(usize, &Video)> = channel
-        .videos
-        .iter()
-        .enumerate()
-        .sorted_by(|a, b| b.1.upload.cmp(&a.1.upload))
-        .collect();
+    let videos: Vec<(usize, &Video)> = channel.videos.iter().enumerate().collect();
 
-    let mut page = Page::new(10, videos.len(), 3);
     clear_screen();
 
-    loop {
-        let mut input = String::new();
+    let mut page = Page::new(10, videos.len(), 3);
+    let mut view = View::new(
+        format!("{}'s Feed", &channel.name).as_str(),
+        "(p)revious, (n)ext, (r)efresh, (c)hannels, (u)nsubscribe, (q)uit",
+        "🢡",
+    );
 
-        println!(
-            "\n{}{}\n",
-            &channel.name.cyan().bold(),
-            "'s Feed".cyan().bold()
-        );
+    loop {
+        view.clear_content();
+
         page.current_page(&videos)
             .iter()
             .enumerate()
             .map(|(i, video)| (i + page.current_index, video))
             .for_each(|(i, (_, video))| {
                 if video.watched {
-                    println!(
-                        "{}. {}\n   {} • {}s Watched\n",
+                    view.add_line(format!(
+                        "{}. {}\n   {} • {}\n",
                         i.to_string().green(),
                         video.title.bright_yellow().underline(),
                         time_since_formatted(video.upload),
-                        video.progress_seconds.unwrap_or(0).to_string()
-                    )
+                        time_formatted_short(video.progress_seconds)
+                    ));
                 } else {
-                    println!(
-                        "{}. {}\n   {} • {}s Watched\n",
+                    view.add_line(format!(
+                        "{}. {}\n   {} • {}\n",
                         i.to_string().green(),
                         video.title.yellow(),
                         time_since_formatted(video.upload),
-                        video.progress_seconds.unwrap_or(0).to_string()
-                    );
+                        time_formatted_short(video.progress_seconds)
+                    ));
                 }
             });
-        println!(
-            "{}",
-            "Options: [(p)revious, (n)ext, (r)efresh, (c)hannels, (u)nsubscribe, (q)uit]"
-                .green()
-                .italic()
-        );
 
-        io::stdin().read_line(&mut input).unwrap();
-        clear_screen();
-        input = input.trim().to_owned();
-
-        if input.eq_ignore_ascii_case("q") {
-            return Message::Quit;
-        } else if input.eq_ignore_ascii_case("c") {
-            return Message::Home;
-        } else if input.eq_ignore_ascii_case("u") {
-            return Message::Unsubscribe(channel_index);
-        } else if input.eq_ignore_ascii_case("r") {
-            return Message::Refresh(View::FeedChannel(channel_index));
-        } else if input.eq_ignore_ascii_case("n") {
-            page.next_page();
-        } else if input.eq_ignore_ascii_case("p") {
-            page.prev_page();
-        } else {
-            match &input.parse::<usize>() {
-                Ok(index) => {
+        match view.show().to_lowercase().as_str() {
+            "q" => return Message::Quit,
+            "c" => return Message::Home,
+            "u" => return Message::Unsubscribe(channel_index),
+            "r" => return Message::Refresh(ViewPage::FeedChannel(channel_index)),
+            "n" => {
+                page.next_page();
+                view.clear_error();
+            }
+            "p" => {
+                page.prev_page();
+                view.clear_error();
+            }
+            input => {
+                if let Ok(index) = &input.parse::<usize>() {
                     if page.item_is_at_index(*index) {
                         return Message::Play(VideoIndex {
                             channel_index: channel_index.0,
                             video_index: *index,
                         });
-                    } else {
-                        println!("{} {}", input.red(), "is not a valid option!".red());
                     }
                 }
-                Err(_) => println!("{} {}", input.red(), "is not a valid option!".red()),
-            };
+                view.set_error(format!("{} is not a valid option!", input));
+            }
         }
     }
 }
 
 pub fn show_mixed(channels: &Channels) -> Message {
-    clear_screen();
-
     let videos: Vec<(usize, usize, &String, &Video)> = channels
         .iter()
         .enumerate()
@@ -115,71 +97,64 @@ pub fn show_mixed(channels: &Channels) -> Message {
 
     let mut page = Page::new(10, videos.len(), 3);
 
+    let mut view = View::new(
+        "Subscription Feed",
+        "(p)revious, (n)ext, (r)efresh, (c)hannels, (q)uit",
+        "🢡",
+    );
+
     loop {
-        let mut input = String::new();
-        println!("\n{}\n", "Subscription Feed".cyan().bold());
+        view.clear_content();
         page.current_page(&videos)
             .iter()
             .enumerate()
             .map(|(i, video)| (i + page.current_index, video))
             .for_each(|(i, (_, _, channel, video))| {
                 if video.watched {
-                    println!(
-                        "{}. {}\n   {} • {} • {}s Watched\n",
+                    view.add_line(format!(
+                        "{}. {}\n   {} • {} • {}\n",
                         i.to_string().green(),
                         video.title.bright_yellow().underline(),
                         channel,
                         time_since_formatted(video.upload),
-                        video.progress_seconds.unwrap_or(0).to_string()
-                    )
+                        time_formatted_short(video.progress_seconds)
+                    ));
                 } else {
-                    println!(
-                        "{}. {}\n   {} • {} • {}s Watched\n",
+                    view.add_line(format!(
+                        "{}. {}\n   {} • {} • {}\n",
                         i.to_string().green(),
                         video.title.yellow(),
                         channel,
                         time_since_formatted(video.upload),
-                        video.progress_seconds.unwrap_or(0).to_string()
-                    )
+                        time_formatted_short(video.progress_seconds)
+                    ));
                 }
             });
 
-        println!(
-            "{}",
-            "Options: [(p)revious, (n)ext, r(efresh), c(hannels), q(uit)]"
-                .green()
-                .italic()
-        );
-        io::stdin().read_line(&mut input).unwrap();
-        clear_screen();
-        input = input.trim().to_owned();
-
-        if input.eq_ignore_ascii_case("q") {
-            return Message::Quit;
-        } else if input.eq_ignore_ascii_case("c") {
-            return Message::Home;
-        } else if input.eq_ignore_ascii_case("n") {
-            page.next_page();
-        } else if input.eq_ignore_ascii_case("r") {
-            return Message::Refresh(View::MixedFeed);
-        } else if input.eq_ignore_ascii_case("p") {
-            page.prev_page();
-        } else {
-            let Ok(index) = input.parse::<usize>() else {
-                println!("{} {}", input.red(), "is not a valid option!".red());
-                continue;
-            };
-
-            match page.item_at_index(&videos, index) {
-                Some((channel_index, video_index, _, _)) => {
-                    return Message::Play(VideoIndex {
-                        channel_index: *channel_index,
-                        video_index: *video_index,
-                    });
+        match view.show().to_lowercase().as_str() {
+            "q" => return Message::Quit,
+            "c" => return Message::Home,
+            "r" => return Message::Refresh(ViewPage::MixedFeed),
+            "n" => {
+                page.next_page();
+                view.clear_error();
+            }
+            "p" => {
+                page.prev_page();
+                view.clear_error();
+            }
+            input => {
+                if let Ok(index) = &input.parse::<usize>() {
+                    let item = page.item_at_index(&videos, *index);
+                    if let Some((channel_index, video_index, _, _)) = item {
+                        return Message::Play(VideoIndex {
+                            channel_index: *channel_index,
+                            video_index: *video_index,
+                        });
+                    }
                 }
-                None => {
-                    println!("{} {}", input.red(), "is not a valid option!".red());
-                }
+
+                view.set_error(format!("{} is not a valid option!", input));
             }
         }
     }

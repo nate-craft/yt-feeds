@@ -12,6 +12,8 @@ impl Page {
     pub fn new(count_per_page: usize, count_total: usize, lines_per_element: usize) -> Page {
         Page {
             current_index: 0,
+            // Avoids terminal scrolling
+            // Take smallest between count and the terminal divided up by each element's space
             count_per_page: min(
                 min(count_total, count_per_page),
                 terminal::size().unwrap().1 as usize / lines_per_element - 4,

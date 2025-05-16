@@ -26,14 +26,14 @@ pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_coun
                 Err(err) => match err {
                     Error::HistoryParsing => {
                         eprintln!(
-                            "{}: '{}'",
-                            "Could not find videos for channel", channel.name
+                            "Could not find videos for channel: '{}'",
+                            channel.name
                         );
                     }
-                    Error::CommandFailed => {
+                    Error::CommandFailed(e) => {
                         eprintln!(
-                            "{}: '{}' with command 'yt-dlp'",
-                            "Could not load in feed for channel", channel.id,
+                            "Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}",
+                            channel.id, e
                         );
                     }
                     _ => {}
@@ -53,7 +53,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
 
         // block till all channels are refreshed
         while updated < channels.len() {
-            if let Ok(fetched) = rx.try_recv() {
+            if let Ok(mut fetched) = rx.try_recv() {
                 // more updates than there are channels (old updates)
                 if updated >= channels.len() {
                     thread::sleep(Duration::from_secs(1));
@@ -70,7 +70,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
                             existing.videos.push(new_video.clone());
                         }
                     }
-
+                    fetched.videos.sort_by(|a, b| b.upload.cmp(&a.upload));
                     updated += 1;
                 }
             }
@@ -91,7 +91,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
             thread::sleep(Duration::from_millis(450));
         }
     } else {
-        while let Ok(fetched) = rx.try_recv() {
+        while let Ok(mut fetched) = rx.try_recv() {
             if let Some(existing) = channels.channel_by_id_mut(&fetched.id) {
                 for new_video in &fetched.videos {
                     if !existing
@@ -102,6 +102,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
                         existing.videos.push(new_video.clone());
                     }
                 }
+                fetched.videos.sort_by(|a, b| b.upload.cmp(&a.upload));
             }
         }
     }

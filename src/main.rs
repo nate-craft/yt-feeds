@@ -11,7 +11,7 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 use updates::{check_updates, fetch_updates};
-use view::{Message, View};
+use view::{Message, ViewPage};
 use views::{feed_view, home_view, player_view, search_view};
 use yt::{Channel, Channels};
 
@@ -28,14 +28,12 @@ mod yt;
 
 pub struct AppState {
     channels: Channels,
-    view: View,
+    view: ViewPage,
     root_dir: Option<PathBuf>,
 }
 
 fn main() {
     let mut history = cache::fetch_watch_history().unwrap_or(Vec::new());
-
-    println!("{:?}", history);
 
     let config = match Config::load_or_default() {
         Ok(loaded) => loaded,
@@ -52,13 +50,13 @@ fn main() {
     let mut state = if let Some(channels_cached) = channels_cached {
         AppState {
             channels: Channels::new(&channels_cached),
-            view: View::Home,
+            view: ViewPage::Home,
             root_dir: cache::data_directory().ok(),
         }
     } else {
         AppState {
             channels: Channels::default(),
-            view: View::Search,
+            view: ViewPage::Search,
             root_dir: cache::data_directory().ok(),
         }
     };
@@ -85,20 +83,21 @@ fn main() {
         check_updates(&rx, &mut state.channels, false);
 
         let message: Message = match state.view {
-            View::Home => home_view::show(&state.channels),
-            View::FeedChannel(channel_index) => {
+            ViewPage::Home => home_view::show(&state.channels),
+            ViewPage::FeedChannel(channel_index) => {
                 feed_view::show_channel(channel_index, &state.channels)
             }
-            View::MixedFeed => feed_view::show_mixed(&state.channels),
-            View::Search => search_view::show(&state.channels),
-            View::Play(video_index, ref last_view) => {
+
+            ViewPage::MixedFeed => feed_view::show_mixed(&state.channels),
+            ViewPage::Search => search_view::show(&state.channels),
+            ViewPage::Play(video_index, ref last_view) => {
                 let next = player_view::show(&state.channels, video_index, last_view.as_ref());
                 //TODO: add optimization to only add history for specific video / on finish playing
                 history = cache::fetch_watch_history().unwrap_or(Vec::new());
                 state.channels.add_history(&history);
                 next
             }
-            View::Refreshing(ref last_view) => {
+            ViewPage::Refreshing(ref last_view) => {
                 fetch_updates(
                     tx.clone(),
                     state
@@ -111,9 +110,9 @@ fn main() {
                 );
                 check_updates(&rx, &mut state.channels, true);
                 match last_view.deref() {
-                    View::Home => Message::Home,
-                    View::FeedChannel(channel_index) => Message::ChannelFeed(*channel_index),
-                    View::MixedFeed => Message::MixedFeed,
+                    ViewPage::Home => Message::Home,
+                    ViewPage::FeedChannel(channel_index) => Message::ChannelFeed(*channel_index),
+                    ViewPage::MixedFeed => Message::MixedFeed,
                     _ => panic!(),
                 }
             }
@@ -125,14 +124,14 @@ fn main() {
 
 fn handle_message(message: Message, state: &mut AppState) {
     match message {
-        Message::MixedFeed => state.view = View::MixedFeed,
-        Message::Home => state.view = View::Home,
-        Message::ChannelFeed(channel_index) => state.view = View::FeedChannel(channel_index),
-        Message::Search => state.view = View::Search,
+        Message::MixedFeed => state.view = ViewPage::MixedFeed,
+        Message::Home => state.view = ViewPage::Home,
+        Message::ChannelFeed(channel_index) => state.view = ViewPage::FeedChannel(channel_index),
+        Message::Search => state.view = ViewPage::Search,
         Message::Play(video_index) => {
             let channel = state.channels.channel_mut(video_index.into()).unwrap();
             channel.video_mut(video_index).unwrap().watched();
-            state.view = View::Play(video_index, Rc::new(state.view.clone()));
+            state.view = ViewPage::Play(video_index, Rc::new(state.view.clone()));
 
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
@@ -145,16 +144,16 @@ fn handle_message(message: Message, state: &mut AppState) {
         }
         Message::Subscribe(channel) => {
             state.channels.push(channel);
-            state.view = View::Home;
+            state.view = ViewPage::Home;
             try_cache_channels(&state.channels);
         }
         Message::Unsubscribe(channel_index) => {
             state.channels.remove(*channel_index);
-            state.view = View::Home;
+            state.view = ViewPage::Home;
             try_cache_channels(&state.channels);
         }
         Message::Refresh(last_view) => {
-            state.view = View::Refreshing(Rc::new(last_view));
+            state.view = ViewPage::Refreshing(Rc::new(last_view));
             try_cache_channels(&state.channels);
         }
         Message::Quit => exit(),
