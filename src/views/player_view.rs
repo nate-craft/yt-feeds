@@ -1,4 +1,5 @@
 use std::{
+    path,
     process::{Command, Stdio},
     thread,
 };
@@ -19,7 +20,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: &ViewPage) -> Mes
 
     let mut view = View::new(
         format!("\"{}\" - {}", video.title, channel.name).as_str(),
-        "(p)lay, (d)etach, (b)ack, (q)uit",
+        "(p)lay, (d)etach, (s)ave, (b)ack, (q)uit",
         "🢡",
     );
 
@@ -42,11 +43,17 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: &ViewPage) -> Mes
                     view.clear_error();
                 }
             }
+            "s" => {
+                if let Err(Error::CommandFailed(e)) = download(video) {
+                    view.set_error(format!("Could not run download video\nError: {}", e));
+                } else {
+                    view.clear_error();
+                }
+            }
             "d" => {
                 let url = video.url.clone();
                 thread::spawn(|| {
                     Command::new("mpv")
-                        .arg("--profile=fast")
                         .arg(url)
                         .stdout(Stdio::null())
                         .stderr(Stdio::null())
@@ -61,14 +68,39 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: &ViewPage) -> Mes
     }
 }
 
+fn download(video: &Video) -> Result<(), Error> {
+    let title = video.title.clone();
+    let output_path = dirs::video_dir()
+        .unwrap()
+        .into_os_string()
+        .into_string()
+        .unwrap();
+    process_while_loading(
+        Command::new("yt-dlp")
+            .arg("-o")
+            .arg(format!(
+                "{}{}%(title)s.%(ext)s",
+                output_path,
+                path::MAIN_SEPARATOR
+            ))
+            .arg(&video.url)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn(),
+        move || {
+            println!("{}\n", title.cyan().bold());
+            print!("{} '{}'", "Downloading ".green(), title.yellow());
+        },
+    )
+}
+
 fn play(video: &Video) -> Result<(), Error> {
     let title = video.title.clone();
     process_while_loading(
         Command::new("mpv")
-            .arg("--profile=fast")
             .arg(&video.url)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn(),
         move || {
             println!("{}\n", title.cyan().bold());

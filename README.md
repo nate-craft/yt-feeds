@@ -84,16 +84,32 @@ Much of the customization can be performed in mpv's configuration like my own:
 fullscreen=yes
 screenshot-directory=~/Pictures/mpv/
 slang=en
+force-seekable=yes
+
+# streaming
+ytdl-format="bv*[height<=720]+ba/best"
 script-opts=ytdl_hook-ytdl_path=yt-dlp
-ytdl-raw-options=cookies-from-browser=firefox
-osd-bar=no
-border=no
-hwdec=vaapi
-gpu-api=auto
+
+# progress
 save-position-on-quit
 write-filename-in-watch-later-config
-display-tags-clr
+
+# apperance
 msg-level=all=no
+display-tags-clr
+osd-bar=no
+border=no
+
+# efficiency
+hwdec=auto
+gpu-api=auto
+profile=fast
+cache=yes
+demuxer-max-bytes=64MiB
+demuxer-max-back-bytes=32MiB
+video-sync=display-resample
+vd-lavc-threads=8
+
 ```
 
 This can be found in the following locations:  
@@ -110,4 +126,33 @@ I recommend these:
 - [UOSC](https://github.com/tomasklaen/uosc) for a modern interface
 - [Thumbfast](https://github.com/po5/thumbfast) for inline video thumbnails
 
+### Yt-dlp
+
+Outside of the MPV configuration, we can also specify specific yt-dlp options.
+
+```txt
+# format
+-f bv*[height<=720]+ba
+--merge-output-format mkv
+
+# metadata
+--embed-chapters
+--sponsorblock-mark all
+--embed-metadata
+--embed-thumbnail
+--add-metadata
+--embed-subs
+--sub-lang en
+--progress
+--hls-use-mpegts
+
+# efficiency
+--no-check-certificate
+--no-playlist
+--geo-bypass
+--youtube-skip-dash-manifest
+--downloader aria2c -N 32
+```
+
+This can be found as specified by [yt-dlp's configuration guide](https://github.com/yt-dlp/yt-dlp#configuration)
 

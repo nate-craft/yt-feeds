@@ -80,7 +80,9 @@ where
                 if event::poll(std::time::Duration::from_millis(1)).unwrap() {
                     match event::read().unwrap() {
                         Event::Resize(_, _) => {
+                            execute!(io::stdout(), cursor::SavePosition).unwrap();
                             clear_screen();
+                            execute!(io::stdout(), cursor::RestorePosition).unwrap();
                         }
                         _ => {}
                     }
