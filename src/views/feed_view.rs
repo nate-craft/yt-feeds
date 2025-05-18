@@ -21,7 +21,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
     let mut page = Page::new(10, videos.len(), 3);
     let mut view = View::new(
         format!("{}'s Feed", &channel.name).as_str(),
-        "(p)revious, (n)ext, (r)efresh, (c)hannels, (u)nsubscribe, (q)uit",
+        "(p)revious, (n)ext, (r)efresh, (u)nsubscribe, (b)ack, (q)uit",
         "🢡",
     );
 
@@ -54,7 +54,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
 
         match view.show().to_lowercase().as_str() {
             "q" => return Message::Quit,
-            "c" => return Message::Home,
+            "b" => return Message::Home,
             "u" => return Message::Unsubscribe(channel_index),
             "r" => return Message::Refresh(ViewPage::FeedChannel(channel_index)),
             "n" => {
@@ -99,7 +99,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
 
     let mut view = View::new(
         "Subscription Feed",
-        "(p)revious, (n)ext, (r)efresh, (c)hannels, (q)uit",
+        "(p)revious, (n)ext, (r)efresh, (b)ack, (q)uit",
         "🢡",
     );
 
@@ -133,7 +133,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
 
         match view.show().to_lowercase().as_str() {
             "q" => return Message::Quit,
-            "c" => return Message::Home,
+            "b" => return Message::Home,
             "r" => return Message::Refresh(ViewPage::MixedFeed),
             "n" => {
                 page.next_page();
