@@ -1,5 +1,4 @@
 use std::{
-    path,
     process::{Command, Stdio},
     thread,
 };

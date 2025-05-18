@@ -1,6 +1,7 @@
 use core::panic;
 use std::ops::Deref;
 use std::path::PathBuf;
+use std::process::Command;
 use std::rc::Rc;
 use std::{io, process, sync::mpsc};
 
@@ -32,7 +33,21 @@ pub struct AppState {
     root_dir: Option<PathBuf>,
 }
 
+fn program_installed(command: &str) -> bool {
+    Command::new(command).arg("--version").output().is_ok()
+}
+
 fn main() {
+    if !program_installed("mpv") {
+        eprintln!("mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds");
+        return;
+    }
+
+    if !program_installed("yt-dlp") {
+        eprintln!("yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds");
+        return;
+    }
+
     let mut history = cache::fetch_watch_history().unwrap_or(Vec::new());
 
     let config = match Config::load_or_default() {
