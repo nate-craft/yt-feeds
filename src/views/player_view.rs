@@ -7,6 +7,7 @@ use std::{
 use colored::Colorize;
 
 use crate::{
+    config::Config,
     loading::process_while_loading,
     view::{Error, Message, ViewPage},
     yt::{Channels, Video, VideoIndex},
@@ -14,7 +15,12 @@ use crate::{
 
 use super::View;
 
-pub fn show(channels: &Channels, index: VideoIndex, last_view: &ViewPage) -> Message {
+pub fn show(
+    channels: &Channels,
+    index: VideoIndex,
+    last_view: &ViewPage,
+    config: &Config,
+) -> Message {
     let channel = channels.channel(index.into()).unwrap();
     let video = channel.video(index).unwrap();
 
@@ -44,7 +50,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: &ViewPage) -> Mes
                 }
             }
             "s" => {
-                if let Err(Error::CommandFailed(e)) = download(video) {
+                if let Err(Error::CommandFailed(e)) = download(video, config) {
                     view.set_error(format!("Could not run download video\nError: {}", e));
                 } else {
                     view.clear_error();
@@ -68,21 +74,12 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: &ViewPage) -> Mes
     }
 }
 
-fn download(video: &Video) -> Result<(), Error> {
+fn download(video: &Video, config: &Config) -> Result<(), Error> {
     let title = video.title.clone();
-    let output_path = dirs::video_dir()
-        .unwrap()
-        .into_os_string()
-        .into_string()
-        .unwrap();
     process_while_loading(
         Command::new("yt-dlp")
             .arg("-o")
-            .arg(format!(
-                "{}{}%(title)s.%(ext)s",
-                output_path,
-                path::MAIN_SEPARATOR
-            ))
+            .arg(format!("{}%(title)s.%(ext)s", config.saved_video_path))
             .arg(&video.url)
             .stdout(Stdio::null())
             .stderr(Stdio::null())

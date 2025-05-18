@@ -125,6 +125,7 @@ You can modify how the MPV video viewer looks like either with the above configu
 I recommend these:
 - [UOSC](https://github.com/tomasklaen/uosc) for a modern interface
 - [Thumbfast](https://github.com/po5/thumbfast) for inline video thumbnails
+- [Sponsorblock](https://github.com/po5/mpv_sponsorblock) to skip video sponsors
 
 ### Yt-dlp
 

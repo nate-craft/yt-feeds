@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::path;
 use std::{
     fs::{self, File},
     path::Path,
@@ -11,6 +12,7 @@ use crate::view::Error;
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub video_count: u32,
+    pub saved_video_path: String,
 }
 
 impl Config {
@@ -28,7 +30,16 @@ impl Config {
         let file = root.join("config.toml");
 
         if !Path::exists(&file) {
-            let default_config = Config { video_count: 30 };
+            let default_config = Config {
+                video_count: 30,
+                saved_video_path: format!(
+                    "{}{}",
+                    dirs::video_dir()
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "~/Videos".to_string()),
+                    path::MAIN_SEPARATOR
+                ),
+            };
             let toml = toml::to_string(&default_config).map_err(|_| Error::TomlError)?;
             fs::write(file, toml).map_err(|_| Error::TomlError)?;
 

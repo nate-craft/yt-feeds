@@ -91,7 +91,8 @@ fn main() {
             ViewPage::MixedFeed => feed_view::show_mixed(&state.channels),
             ViewPage::Search => search_view::show(&state.channels),
             ViewPage::Play(video_index, ref last_view) => {
-                let next = player_view::show(&state.channels, video_index, last_view.as_ref());
+                let next =
+                    player_view::show(&state.channels, video_index, last_view.as_ref(), &config);
                 //TODO: add optimization to only add history for specific video / on finish playing
                 history = cache::fetch_watch_history().unwrap_or(Vec::new());
                 state.channels.add_history(&history);
