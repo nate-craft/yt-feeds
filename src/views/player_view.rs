@@ -26,7 +26,7 @@ pub fn show(
     let mut view = View::new(
         format!("\"{}\" - {}", video.title, channel.name).as_str(),
         "(p)lay, (d)etach, (s)ave, (b)ack, (q)uit",
-        "🢡",
+        "▶",
     );
 
     loop {

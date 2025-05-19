@@ -29,7 +29,7 @@ pub fn show(channels: &Channels) -> Message {
     let mut view = View::new(
         format!("{} Home", user).as_str(),
         "(p)revious, (n)ext, (s)earch, (a)ll, (r)efresh, (q)uit",
-        "🢡",
+        "▶",
     );
 
     loop {

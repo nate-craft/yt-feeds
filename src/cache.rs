@@ -12,7 +12,6 @@ use std::{
     io::{BufReader, BufWriter, Read},
     path::{Path, PathBuf},
     process,
-    str::FromStr,
 };
 
 pub fn load_channel(

@@ -22,7 +22,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
     let mut view = View::new(
         format!("{}'s Feed", &channel.name).as_str(),
         "(p)revious, (n)ext, (r)efresh, (u)nsubscribe, (b)ack, (q)uit",
-        "🢡",
+        "▶",
     );
 
     loop {
@@ -100,7 +100,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
     let mut view = View::new(
         "Subscription Feed",
         "(p)revious, (n)ext, (r)efresh, (b)ack, (q)uit",
-        "🢡",
+        "▶",
     );
 
     loop {

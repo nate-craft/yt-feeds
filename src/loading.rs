@@ -28,7 +28,7 @@ where
         execute!(io::stdout(), cursor::MoveTo(0, 1)).unwrap();
         print_fn();
         println!("  {}", steps[step]);
-        print!("\n{}\n\n🢡 ", "Options: [(c)ancel]".green().italic());
+        print!("\n{}\n\n▶ ", "Options: [(c)ancel]".green().italic());
         io::stdout().flush().unwrap();
 
         while let Err(_) = rx.recv_timeout(Duration::from_millis(150)) {
@@ -65,7 +65,7 @@ where
                                 "External process finished. Press enter to continue...\n\n"
                                     .green()
                                     .italic(),
-                                "🢡 "
+                                "▶ "
                             );
                             io::stdout().flush().unwrap();
                         }
