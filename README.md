@@ -1,6 +1,6 @@
 # YT-Feeds
 
-YT-Feeds is a simple, fast, and distraction free CLI application to view videos from your favorite channels.
+YT-Feeds is a cross-platform simple, fast, and distraction free CLI application to view videos from your favorite channels.
 
 ## Features
 
@@ -57,18 +57,28 @@ doas apk add yt-dlp mpv
 
 #### MacOS
 ```
+# Brew can be installed at https://brew.sh/
 brew install yt-dlp mpv
 ```
 
-e/details>
+</details>
 <details><summary>Windows Runtime Dependencies</summary>
 
 #### Windows
 ```
-# Chocolatey
+# WSL can be installed at https://learn.microsoft.com/en-us/windows/wsl/install
+# This is recommended and will allow you to follow Linux instructions with support
+
+# OR
+
+# Chocolatey can be installed at https://chocolatey.org/install
+# Note: untested
 choco install yt-dlp mpv
 
-# Winget
+# OR
+
+# Winget can be installed at https://github.com/microsoft/winget-cli
+# Note: untested
 winget install yt-dlp mpv
 ```
 
@@ -77,14 +87,16 @@ winget install yt-dlp mpv
 ## Customization
 
 Basic configuration is done in `yt-feeds.toml` located in the following locations:
-Linux: `~/.config/yt-feeds/config.toml`
-MacOS: `~/Library/Application Support/yt-feeds/config.toml`
-Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\config.toml`
-
+ 
+**Linux**: `~/.config/yt-feeds/config.toml`  
+**MacOS**: `~/Library/Application Support/yt-feeds/config.toml`  
+**Windows**: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\config.toml`  
+  
 Saved data and caches can be found in the following location:
-Linux: `~/.local/share/yt-feeds/`
-MacOS: `~/Library/Application Support/yt-feeds/`
-Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\`
+
+**Linux**: `~/.local/share/yt-feeds/`  
+**MacOS**: `~/Library/Application Support/yt-feeds/`  
+**Windows**: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\`  
 
 
 ### MPV
@@ -123,10 +135,11 @@ vd-lavc-threads=8
 
 ```
 
-This can be created in the following locations:  
-Linux: `~/.config/mpv/mpv.conf`  
-MacOS: `~/.config/mpv/mpv.conf`  
-Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\mpv\mpv.conf`
+This can be created in the following locations:
+
+**Linux**: `~/.config/mpv/mpv.conf`  
+**MacOS**: `~/.config/mpv/mpv.conf`  
+**Windows**: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\mpv\mpv.conf`
 
 > Note: for watch history to function, both `save-position-on-quit` and `write-filename-in-watch-later-config` must be in your `mpv.conf`
 
@@ -138,7 +151,7 @@ I recommend these:
 - [Thumbfast](https://github.com/po5/thumbfast) for inline video thumbnails
 - [Sponsorblock](https://github.com/po5/mpv_sponsorblock) to skip video sponsors
 
-### Yt-dlp
+### yt-dlp
 
 Outside of the MPV configuration, we can also specify specific yt-dlp options.
 
@@ -166,9 +179,9 @@ Outside of the MPV configuration, we can also specify specific yt-dlp options.
 --downloader aria2c -N 32
 ```
 
-This can be found as specified by [yt-dlp's configuration guide](https://github.com/yt-dlp/yt-dlp#configuration)
 This can be found in the following locations:
-Linux: `~/.config/mpv/mpv.conf`  
-MacOS: `~/Library/Application Support/yt-dlp/config`  
-Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\yt-dlp\config`
+
+**Linux**: `~/.config/mpv/mpv.conf`  
+**MacOS**: `~/Library/Application Support/yt-dlp/config`  
+**Windows**: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\yt-dlp\config`
 
