@@ -56,7 +56,7 @@ pub fn show(
                 }
             }
             "d" => {
-                let url = video.url.clone();
+                let url = video.url();
                 thread::spawn(|| {
                     Command::new("mpv")
                         .arg(url)
@@ -75,11 +75,13 @@ pub fn show(
 
 fn download(video: &Video, config: &Config) -> Result<(), Error> {
     let title = video.title.clone();
+    let url = video.url();
+
     process_while_loading(
         Command::new("yt-dlp")
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", config.saved_video_path))
-            .arg(&video.url)
+            .arg(url)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn(),
@@ -92,9 +94,11 @@ fn download(video: &Video, config: &Config) -> Result<(), Error> {
 
 fn play(video: &Video) -> Result<(), Error> {
     let title = video.title.clone();
+    let url = video.url();
+
     process_while_loading(
         Command::new("mpv")
-            .arg(&video.url)
+            .arg(url)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn(),

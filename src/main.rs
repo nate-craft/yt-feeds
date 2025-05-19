@@ -108,7 +108,7 @@ fn main() {
 
                 let channel = state.channels.channel_mut(video_index.into()).unwrap();
                 let video = channel.video_mut(video_index).unwrap();
-                let history_fetched = cache::fetch_history_one(&video.url);
+                let history_fetched = cache::fetch_history_one(&video.id);
                 match history_fetched {
                     Ok(history_fetched) => {
                         video.progress_seconds = Some(history_fetched.progress_seconds)

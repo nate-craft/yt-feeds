@@ -29,8 +29,7 @@ pub struct Channels(pub Vec<Channel>);
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
 pub struct Video {
     pub title: String,
-    //TODO: replace with ID and fix all usages from '?w=ID' to split on the '='
-    pub url: String,
+    pub id: String,
     pub watched: bool,
     pub upload: DateTime<Local>,
     pub progress_seconds: Option<i32>,
@@ -90,25 +89,6 @@ impl Channels {
     pub fn has_channel(&self, channel_id: &str) -> bool {
         self.channel_by_id(channel_id).is_some()
     }
-
-    // pub fn add_history(&mut self) {
-    //     let history = cache::fetch_history_all().unwrap_or(Vec::new());
-    //     history.iter().for_each(|history| {
-    //         self.iter_mut().for_each(|channel| {
-    //             channel.videos.iter_mut().for_each(|video| {
-    //                 if video
-    //                     .url
-    //                     .split("/")
-    //                     .last()
-    //                     .map(|id| id == history.id)
-    //                     .unwrap_or(false)
-    //                 {
-    //                     video.progress_seconds = Some(history.progress_seconds);
-    //                 }
-    //             });
-    //         });
-    //     });
-    // }
 }
 
 impl Deref for Channels {
@@ -156,8 +136,25 @@ impl Channel {
 }
 
 impl Video {
+    pub fn new(
+        title: impl Into<String>,
+        id: impl Into<String>,
+        upload_date: DateTime<Local>,
+    ) -> Video {
+        Video {
+            title: title.into(),
+            id: id.into(),
+            upload: upload_date,
+            watched: false,
+            progress_seconds: None,
+        }
+    }
     pub fn watched(&mut self) {
         self.watched = true;
+    }
+
+    pub fn url(&self) -> String {
+        format!("{}{}", "https://www.youtube.com/watch?v=", self.id)
     }
 }
 
@@ -212,17 +209,11 @@ impl TryFrom<VideoAccumulator> for Video {
         if !value.available {
             return Err(Error::VideoParsing);
         }
-        Ok(Video {
-            title: value.title.ok_or(Error::VideoParsing)?,
-            upload: value.upload.ok_or(Error::VideoParsing)?,
-            url: format!(
-                "{}{}",
-                "https://www.youtube.com/watch?v=",
-                value.id.ok_or(Error::VideoParsing)?
-            ),
-            watched: false,
-            progress_seconds: None,
-        })
+        Ok(Video::new(
+            value.title.ok_or(Error::VideoParsing)?,
+            value.id.ok_or(Error::VideoParsing)?,
+            value.upload.ok_or(Error::VideoParsing)?,
+        ))
     }
 }
 

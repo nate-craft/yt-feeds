@@ -33,10 +33,13 @@ pub fn load_channel(
             // try to apply new history
             if let Some(history) = history {
                 videos.iter_mut().for_each(|video| {
-                    let id = video.url.split("/").last();
-                    if let Some(id) = id {
-                        let found = history.get(id).map(|history| history.progress_seconds);
-                        video.progress_seconds = found;
+                    let found = history
+                        .get(&video.id)
+                        .map(|history| history.progress_seconds);
+                    video.progress_seconds = found;
+                    if let Some(progress) = found {
+                        // Never swap to false (viewer may have watched only for an instant, but that is still a watch)
+                        video.watched = video.watched || progress > 0;
                     }
                 });
             }
@@ -135,7 +138,7 @@ impl WatchProgressAccumulator {
                 .last()
                 .and_then(|string| string.parse::<f32>().ok().map(|i| i as i32));
         } else if line.starts_with("#") {
-            self.id = line.split("/").last().map(|str| str.to_owned());
+            self.id = line.split_once("?v=").map(|(_, id)| id.to_owned());
         }
         self
     }
@@ -151,7 +154,7 @@ impl TryFrom<WatchProgressAccumulator> for WatchProgress {
     }
 }
 
-pub fn fetch_history_one(url: &str) -> Result<WatchProgress, Error> {
+pub fn fetch_history_one(id: &str) -> Result<WatchProgress, Error> {
     let Some(root) = dirs::state_dir() else {
         return Err(Error::FileBadAccess);
     };
@@ -180,7 +183,7 @@ pub fn fetch_history_one(url: &str) -> Result<WatchProgress, Error> {
                 )
                 .try_into()
                 .ok()
-                .filter(|history: &WatchProgress| url.split("/").last() == Some(&history.id))
+                .filter(|history: &WatchProgress| Some(id) == Some(&history.id))
         })
         .ok_or(Error::HistoryParsing)
 }

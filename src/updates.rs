@@ -65,7 +65,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
                         if !existing
                             .videos
                             .iter()
-                            .any(|existing_video| existing_video.url == new_video.url)
+                            .any(|existing_video| existing_video.id == new_video.id)
                         {
                             existing.videos.push(new_video.clone());
                         }
@@ -97,7 +97,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
                     if !existing
                         .videos
                         .iter()
-                        .any(|existing_video| existing_video.url == new_video.url)
+                        .any(|existing_video| existing_video.id == new_video.id)
                     {
                         existing.videos.push(new_video.clone());
                     }
