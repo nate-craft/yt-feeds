@@ -1,5 +1,4 @@
 use core::panic;
-use std::ops::Deref;
 use std::path::PathBuf;
 use std::process::Command;
 use std::rc::Rc;
@@ -11,7 +10,7 @@ use crossterm::{
     cursor,
     terminal::{self, ClearType},
 };
-use updates::{check_updates, fetch_updates};
+use updates::{check_updates, fetch_updates, Blocking};
 use view::{Message, ViewPage};
 use views::{feed_view, home_view, player_view, search_view};
 use yt::{Channel, Channels};
@@ -78,22 +77,26 @@ fn main() {
 
     let (tx, rx) = mpsc::channel::<Channel>();
 
-    // Auto update and auto cache on startup
-    updates::fetch_updates(
-        tx.clone(),
-        state
-            .channels
-            .iter()
-            .map(|channel| channel.into())
-            .collect(),
-        config.video_count,
-    );
+    // Auto update on startup
+    if config.refresh_on_start {
+        updates::fetch_updates(
+            tx.clone(),
+            state
+                .channels
+                .iter()
+                .map(|channel| channel.into())
+                .collect(),
+            config.video_count,
+        );
+    }
 
     try_cache_channels(&state.channels);
 
     loop {
-        // check for updates in the background
-        check_updates(&rx, &mut state.channels, false);
+        // check for auto updates in background of each loop
+        if config.refresh_on_start {
+            check_updates(&rx, &mut state.channels, Blocking::NoWait);
+        }
 
         let message: Message = match state.view {
             ViewPage::Home => home_view::show(&state.channels),
@@ -118,19 +121,28 @@ fn main() {
                 next
             }
             ViewPage::Refreshing(ref last_view) => {
-                fetch_updates(
-                    tx.clone(),
-                    state
-                        .channels
-                        .iter()
-                        .map(|channel| channel.into())
-                        .collect(),
-                    config.video_count,
-                );
-                check_updates(&rx, &mut state.channels, true);
-                match last_view.deref() {
+                if let ViewPage::FeedChannel(channel_index) = **last_view {
+                    let channel = state.channels.channel(channel_index).unwrap();
+                    fetch_updates(tx.clone(), vec![channel.into()], config.video_count);
+                    check_updates(&rx, &mut state.channels, Blocking::WaitForN(1));
+                } else {
+                    fetch_updates(
+                        tx.clone(),
+                        state
+                            .channels
+                            .iter()
+                            .map(|channel| channel.into())
+                            .collect(),
+                        config.video_count,
+                    );
+
+                    let number_updates = state.channels.len();
+                    check_updates(&rx, &mut state.channels, Blocking::WaitForN(number_updates));
+                }
+
+                match **last_view {
                     ViewPage::Home => Message::Home,
-                    ViewPage::FeedChannel(channel_index) => Message::ChannelFeed(*channel_index),
+                    ViewPage::FeedChannel(channel_index) => Message::ChannelFeed(channel_index),
                     ViewPage::MixedFeed => Message::MixedFeed,
                     _ => panic!(),
                 }

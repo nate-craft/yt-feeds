@@ -13,6 +13,7 @@ use crate::view::Error;
 pub struct Config {
     pub video_count: u32,
     pub saved_video_path: String,
+    pub refresh_on_start: bool,
 }
 
 impl Config {
@@ -39,6 +40,7 @@ impl Config {
                         .unwrap_or_else(|| "~/Videos".to_string()),
                     path::MAIN_SEPARATOR
                 ),
+                refresh_on_start: false,
             };
             let toml = toml::to_string(&default_config).map_err(|_| Error::TomlError)?;
             fs::write(file, toml).map_err(|_| Error::TomlError)?;
