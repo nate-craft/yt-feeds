@@ -141,7 +141,41 @@ impl TryFrom<WatchHistoryAccumulator> for WatchHistory {
     }
 }
 
-pub fn fetch_watch_history() -> Result<Vec<WatchHistory>, Error> {
+pub fn fetch_history_one(url: &str) -> Result<WatchHistory, Error> {
+    let Some(root) = dirs::state_dir() else {
+        return Err(Error::FileBadAccess);
+    };
+
+    let dir = root.join("mpv/").join("watch_later/");
+
+    if !Path::exists(&dir) {
+        return Err(Error::FileBadAccess);
+    }
+
+    let files = dir.read_dir().map_err(|_| Error::FileBadAccess)?;
+
+    // Get file that matches history id from given title argument
+    files
+        .into_iter()
+        .filter_map(|path| path.ok())
+        .filter_map(|entry| File::open(entry.path()).ok())
+        .find_map(|mut file| {
+            let mut raw = String::new();
+            file.read_to_string(&mut raw).ok();
+            raw.trim()
+                .lines()
+                .fold(
+                    WatchHistoryAccumulator::default(),
+                    WatchHistoryAccumulator::accumulate,
+                )
+                .try_into()
+                .ok()
+                .filter(|history: &WatchHistory| url.split("/").last() == Some(&history.id))
+        })
+        .ok_or(Error::HistoryParsing)
+}
+
+pub fn fetch_history_all() -> Result<Vec<WatchHistory>, Error> {
     let Some(root) = dirs::state_dir() else {
         return Err(Error::FileBadAccess);
     };
@@ -159,6 +193,7 @@ pub fn fetch_watch_history() -> Result<Vec<WatchHistory>, Error> {
         .filter_map(|path| path.ok())
         .filter_map(|entry| File::open(entry.path()).ok())
         .filter_map(|mut file| {
+            // Will ignore some if watch history was not from a YT video played from this program
             let mut raw = String::new();
             file.read_to_string(&mut raw).ok();
             raw.trim()

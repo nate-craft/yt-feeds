@@ -48,8 +48,6 @@ fn main() {
         return;
     }
 
-    let mut history = cache::fetch_watch_history().unwrap_or(Vec::new());
-
     let config = match Config::load_or_default() {
         Ok(loaded) => loaded,
         Err(err) => {
@@ -76,6 +74,8 @@ fn main() {
         }
     };
 
+    //TODO: just make this one function
+    let history = cache::fetch_history_all().unwrap_or(Vec::new());
     state.channels.add_history(&history);
 
     let (tx, rx) = mpsc::channel::<Channel>();
@@ -106,11 +106,17 @@ fn main() {
             ViewPage::MixedFeed => feed_view::show_mixed(&state.channels),
             ViewPage::Search => search_view::show(&state.channels),
             ViewPage::Play(video_index, ref last_view) => {
-                let next =
-                    player_view::show(&state.channels, video_index, last_view.as_ref(), &config);
-                //TODO: add optimization to only add history for specific video / on finish playing
-                history = cache::fetch_watch_history().unwrap_or(Vec::new());
-                state.channels.add_history(&history);
+                let next = player_view::show(&state.channels, video_index, &last_view, &config);
+
+                let channel = state.channels.channel_mut(video_index.into()).unwrap();
+                let video = channel.video_mut(video_index).unwrap();
+                let history_fetched = cache::fetch_history_one(&video.url);
+                match history_fetched {
+                    Ok(history_fetched) => {
+                        video.progress_seconds = Some(history_fetched.progress_seconds)
+                    }
+                    Err(e) => eprintln!("Could not fetch watch history.\nError: {:?}", e),
+                }
                 next
             }
             ViewPage::Refreshing(ref last_view) => {
@@ -118,7 +124,6 @@ fn main() {
                     tx.clone(),
                     state
                         .channels
-                        .0
                         .iter()
                         .map(|channel| channel.into())
                         .collect(),
