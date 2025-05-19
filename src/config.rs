@@ -36,8 +36,9 @@ impl Config {
                 saved_video_path: format!(
                     "{}{}",
                     dirs::video_dir()
+                        .or_else(|| dirs::home_dir().map(|home| home.join("Videos")))
                         .map(|path| path.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "~/Videos".to_string()),
+                        .ok_or(Error::FileBadAccess)?,
                     path::MAIN_SEPARATOR
                 ),
                 refresh_on_start: false,

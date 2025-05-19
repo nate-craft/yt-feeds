@@ -160,7 +160,6 @@ impl TryFrom<WatchProgressAccumulator> for WatchProgress {
 
 pub fn fetch_history_one(id: &str) -> Result<WatchProgress, Error> {
     let root = mpv_shared_path()?;
-
     let dir = root.join("mpv/").join("watch_later/");
 
     if !Path::exists(&dir) {
@@ -239,10 +238,12 @@ fn mpv_shared_path() -> Result<PathBuf, Error> {
     match env::consts::OS {
         "linux" => dirs::state_dir().ok_or(Error::FileBadAccess),
         "macos" => {
-            // MPV MacOS tries xdg config specifying to ~/.config/, then to ~/Library/Application Support.
+            // MPV MacOS tries xdg config specifying to $HOME/.config/, then to $HOME/Library/Application Support.
             // Why? I have no idea. Not a Mac user
             // This may be the result of future bugs involving watch history not saving
-            PathBuf::from_str("~/.config").or(dirs::config_local_dir().ok_or(Error::FileBadAccess))
+            dirs::home_dir()
+                .map(|home| home.join(".config/"))
+                .ok_or(Error::FileBadAccess)
         }
         "windows" => dirs::data_dir()
             .or(dirs::data_local_dir())
