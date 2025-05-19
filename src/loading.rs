@@ -36,7 +36,7 @@ where
             execute!(io::stdout(), cursor::MoveTo(0, 1)).unwrap();
             print_fn();
             println!("  {}", steps[step]);
-            println!("\n{}\n\n{}", "Options: [(c)ancel]".green().italic(), "🢡");
+            println!("\n{}\n\n{}", "Options: [(c)ancel]".green().italic(), "▶");
 
             execute!(io::stdout(), cursor::RestorePosition).unwrap();
             step = (step + 1) % steps.len();
