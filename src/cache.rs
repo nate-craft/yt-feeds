@@ -1,4 +1,5 @@
 use crate::{
+    clear_screen,
     view::Error,
     yt::{Channel, ChannelInfo, Video},
     Channels,
@@ -6,9 +7,12 @@ use crate::{
 
 use std::{
     collections::HashMap,
+    env,
     fs::{self, File},
     io::{BufReader, BufWriter, Read},
     path::{Path, PathBuf},
+    process,
+    str::FromStr,
 };
 
 pub fn load_channel(
@@ -155,9 +159,7 @@ impl TryFrom<WatchProgressAccumulator> for WatchProgress {
 }
 
 pub fn fetch_history_one(id: &str) -> Result<WatchProgress, Error> {
-    let Some(root) = dirs::state_dir() else {
-        return Err(Error::FileBadAccess);
-    };
+    let root = mpv_shared_path()?;
 
     let dir = root.join("mpv/").join("watch_later/");
 
@@ -189,10 +191,7 @@ pub fn fetch_history_one(id: &str) -> Result<WatchProgress, Error> {
 }
 
 pub fn fetch_history_all() -> Result<HashMap<String, WatchProgress>, Error> {
-    let Some(root) = dirs::state_dir() else {
-        return Err(Error::FileBadAccess);
-    };
-
+    let root = mpv_shared_path()?;
     let dir = root.join("mpv/").join("watch_later/");
 
     if !Path::exists(&dir) {
@@ -223,9 +222,9 @@ pub fn fetch_history_all() -> Result<HashMap<String, WatchProgress>, Error> {
 }
 
 pub fn data_directory() -> Result<PathBuf, Error> {
-    let Some(root) = dirs::data_local_dir() else {
-        return Err(Error::FileBadAccess);
-    };
+    let root = dirs::data_local_dir()
+        .or(dirs::data_dir())
+        .ok_or(Error::FileBadAccess)?;
 
     let root = root.join("yt-feeds/");
 
@@ -234,4 +233,24 @@ pub fn data_directory() -> Result<PathBuf, Error> {
     }
 
     Ok(root)
+}
+
+fn mpv_shared_path() -> Result<PathBuf, Error> {
+    match env::consts::OS {
+        "linux" => dirs::state_dir().ok_or(Error::FileBadAccess),
+        "macos" => {
+            // MPV MacOS tries xdg config specifying to ~/.config/, then to ~/Library/Application Support.
+            // Why? I have no idea. Not a Mac user
+            // This may be the result of future bugs involving watch history not saving
+            PathBuf::from_str("~/.config").or(dirs::config_local_dir().ok_or(Error::FileBadAccess))
+        }
+        "windows" => dirs::data_dir()
+            .or(dirs::data_local_dir())
+            .ok_or(Error::FileBadAccess),
+        _ => {
+            clear_screen();
+            eprintln!("Could not find any directory for mpv. Report in github issues...");
+            process::exit(1);
+        }
+    }
 }

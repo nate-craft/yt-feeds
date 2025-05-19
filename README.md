@@ -60,7 +60,7 @@ doas apk add yt-dlp mpv
 brew install yt-dlp mpv
 ```
 
-</details>
+e/details>
 <details><summary>Windows Runtime Dependencies</summary>
 
 #### Windows
@@ -75,6 +75,17 @@ winget install yt-dlp mpv
 </details>
 
 ## Customization
+
+Basic configuration is done in `yt-feeds.toml` located in the following locations:
+Linux: `~/.config/yt-feeds/config.toml`
+MacOS: `~/Library/Application Support/yt-feeds/config.toml`
+Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\config.toml`
+
+Saved data and caches can be found in the following location:
+Linux: `~/.local/share/yt-feeds/`
+MacOS: `~/Library/Application Support/yt-feeds/`
+Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\`
+
 
 ### MPV
 
@@ -112,9 +123,9 @@ vd-lavc-threads=8
 
 ```
 
-This can be found in the following locations:  
+This can be created in the following locations:  
 Linux: `~/.config/mpv/mpv.conf`  
-MacOS: `~/Library/Application Support/mpv/mpv.conf`  
+MacOS: `~/.config/mpv/mpv.conf`  
 Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\mpv\mpv.conf`
 
 > Note: for watch history to function, both `save-position-on-quit` and `write-filename-in-watch-later-config` must be in your `mpv.conf`
@@ -156,4 +167,8 @@ Outside of the MPV configuration, we can also specify specific yt-dlp options.
 ```
 
 This can be found as specified by [yt-dlp's configuration guide](https://github.com/yt-dlp/yt-dlp#configuration)
+This can be found in the following locations:
+Linux: `~/.config/mpv/mpv.conf`  
+MacOS: `~/Library/Application Support/yt-dlp/config`  
+Windows: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\yt-dlp\config`
 
