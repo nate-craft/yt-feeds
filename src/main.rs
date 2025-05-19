@@ -74,9 +74,7 @@ fn main() {
         }
     };
 
-    //TODO: just make this one function
-    let history = cache::fetch_history_all().unwrap_or(Vec::new());
-    state.channels.add_history(&history);
+    // state.channels.add_history();
 
     let (tx, rx) = mpsc::channel::<Channel>();
 

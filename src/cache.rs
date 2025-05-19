@@ -5,37 +5,47 @@ use crate::{
 };
 
 use std::{
+    collections::HashMap,
     fs::{self, File},
     io::{BufReader, BufWriter, Read},
     path::{Path, PathBuf},
 };
 
-impl TryFrom<&ChannelInfo> for Channel {
-    type Error = Error;
+pub fn load_channel(
+    value: &ChannelInfo,
+    history: Option<&HashMap<String, WatchProgress>>,
+) -> Result<Channel, Error> {
+    let Ok(root) = data_directory() else {
+        eprintln!(
+            "{}",
+            "Could not retrieve local data directory. Caching cannot be enabled!"
+        );
+        return Err(Error::FileBadAccess);
+    };
 
-    fn try_from(value: &ChannelInfo) -> Result<Self, Self::Error> {
-        let Ok(root) = data_directory() else {
-            eprintln!(
-                "{}",
-                "Could not retrieve local data directory. Caching cannot be enabled!"
-            );
-            return Err(Error::FileBadAccess);
-        };
+    if let Ok(file) = File::open(
+        root.join("channels/")
+            .join(format!("{}{}", &value.id, ".json")),
+    ) {
+        let json_videos: Result<Vec<Video>, _> = serde_json::from_reader(BufReader::new(file));
 
-        if let Ok(file) = File::open(
-            root.join("channels/")
-                .join(format!("{}{}", &value.id, ".json")),
-        ) {
-            let json: Result<Vec<Video>, _> = serde_json::from_reader(BufReader::new(file));
-
-            if let Ok(videos) = json {
-                Ok(Channel::new(value.name.clone(), value.id.clone(), videos))
-            } else {
-                Err(Error::JsonError)
+        if let Ok(mut videos) = json_videos {
+            // try to apply new history
+            if let Some(history) = history {
+                videos.iter_mut().for_each(|video| {
+                    let id = video.url.split("/").last();
+                    if let Some(id) = id {
+                        let found = history.get(id).map(|history| history.progress_seconds);
+                        video.progress_seconds = found;
+                    }
+                });
             }
+            Ok(Channel::new(value.name.clone(), value.id.clone(), videos))
         } else {
-            Err(Error::FileBadAccess)
+            Err(Error::JsonError)
         }
+    } else {
+        Err(Error::FileBadAccess)
     }
 }
 
@@ -106,19 +116,19 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
 }
 
 #[derive(Debug)]
-pub struct WatchHistory {
+pub struct WatchProgress {
     pub id: String,
     pub progress_seconds: i32,
 }
 
 #[derive(Default)]
-struct WatchHistoryAccumulator {
+struct WatchProgressAccumulator {
     id: Option<String>,
     progress: Option<i32>,
 }
 
-impl WatchHistoryAccumulator {
-    fn accumulate(mut self, line: &str) -> WatchHistoryAccumulator {
+impl WatchProgressAccumulator {
+    fn accumulate(mut self, line: &str) -> WatchProgressAccumulator {
         if line.starts_with("start") {
             self.progress = line
                 .split("=")
@@ -131,17 +141,17 @@ impl WatchHistoryAccumulator {
     }
 }
 
-impl TryFrom<WatchHistoryAccumulator> for WatchHistory {
+impl TryFrom<WatchProgressAccumulator> for WatchProgress {
     type Error = Error;
-    fn try_from(value: WatchHistoryAccumulator) -> Result<Self, Error> {
-        Ok(WatchHistory {
+    fn try_from(value: WatchProgressAccumulator) -> Result<Self, Error> {
+        Ok(WatchProgress {
             id: value.id.ok_or(Error::HistoryParsing)?,
             progress_seconds: value.progress.ok_or(Error::HistoryParsing)?,
         })
     }
 }
 
-pub fn fetch_history_one(url: &str) -> Result<WatchHistory, Error> {
+pub fn fetch_history_one(url: &str) -> Result<WatchProgress, Error> {
     let Some(root) = dirs::state_dir() else {
         return Err(Error::FileBadAccess);
     };
@@ -165,17 +175,17 @@ pub fn fetch_history_one(url: &str) -> Result<WatchHistory, Error> {
             raw.trim()
                 .lines()
                 .fold(
-                    WatchHistoryAccumulator::default(),
-                    WatchHistoryAccumulator::accumulate,
+                    WatchProgressAccumulator::default(),
+                    WatchProgressAccumulator::accumulate,
                 )
                 .try_into()
                 .ok()
-                .filter(|history: &WatchHistory| url.split("/").last() == Some(&history.id))
+                .filter(|history: &WatchProgress| url.split("/").last() == Some(&history.id))
         })
         .ok_or(Error::HistoryParsing)
 }
 
-pub fn fetch_history_all() -> Result<Vec<WatchHistory>, Error> {
+pub fn fetch_history_all() -> Result<HashMap<String, WatchProgress>, Error> {
     let Some(root) = dirs::state_dir() else {
         return Err(Error::FileBadAccess);
     };
@@ -199,11 +209,12 @@ pub fn fetch_history_all() -> Result<Vec<WatchHistory>, Error> {
             raw.trim()
                 .lines()
                 .fold(
-                    WatchHistoryAccumulator::default(),
-                    WatchHistoryAccumulator::accumulate,
+                    WatchProgressAccumulator::default(),
+                    WatchProgressAccumulator::accumulate,
                 )
                 .try_into()
                 .ok()
+                .map(|history: WatchProgress| (history.id.clone(), history))
         })
         .collect())
 }

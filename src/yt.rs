@@ -8,7 +8,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{cache::WatchHistory, view::Error};
+use crate::{cache, view::Error};
 
 #[derive(Debug, Clone)]
 pub struct Channel {
@@ -29,6 +29,7 @@ pub struct Channels(pub Vec<Channel>);
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
 pub struct Video {
     pub title: String,
+    //TODO: replace with ID and fix all usages from '?w=ID' to split on the '='
     pub url: String,
     pub watched: bool,
     pub upload: DateTime<Local>,
@@ -60,10 +61,13 @@ impl Default for Channels {
 
 impl Channels {
     pub fn new(channels_cached: &[ChannelInfo]) -> Channels {
+        let history = cache::fetch_history_all().ok();
         Channels(
             channels_cached
                 .iter()
-                .filter_map(|cached: &ChannelInfo| cached.try_into().ok())
+                .filter_map(|cached: &ChannelInfo| {
+                    cache::load_channel(cached, history.as_ref()).ok()
+                })
                 .collect::<Vec<Channel>>(),
         )
     }
@@ -87,23 +91,24 @@ impl Channels {
         self.channel_by_id(channel_id).is_some()
     }
 
-    pub fn add_history(&mut self, history: &[WatchHistory]) {
-        history.iter().for_each(|history| {
-            self.iter_mut().for_each(|channel| {
-                channel.videos.iter_mut().for_each(|video| {
-                    if video
-                        .url
-                        .split("/")
-                        .last()
-                        .map(|id| id == history.id)
-                        .unwrap_or(false)
-                    {
-                        video.progress_seconds = Some(history.progress_seconds);
-                    }
-                });
-            });
-        });
-    }
+    // pub fn add_history(&mut self) {
+    //     let history = cache::fetch_history_all().unwrap_or(Vec::new());
+    //     history.iter().for_each(|history| {
+    //         self.iter_mut().for_each(|channel| {
+    //             channel.videos.iter_mut().for_each(|video| {
+    //                 if video
+    //                     .url
+    //                     .split("/")
+    //                     .last()
+    //                     .map(|id| id == history.id)
+    //                     .unwrap_or(false)
+    //                 {
+    //                     video.progress_seconds = Some(history.progress_seconds);
+    //                 }
+    //             });
+    //         });
+    //     });
+    // }
 }
 
 impl Deref for Channels {
