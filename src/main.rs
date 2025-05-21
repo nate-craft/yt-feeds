@@ -94,9 +94,8 @@ fn main() {
                 .collect(),
             config.video_count,
         );
+        try_cache_channels(&state.channels);
     }
-
-    try_cache_channels(&state.channels);
 
     loop {
         // check for auto updates in background of each loop
