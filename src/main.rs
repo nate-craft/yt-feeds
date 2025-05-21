@@ -1,9 +1,11 @@
 use core::panic;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{self, Command};
 use std::rc::Rc;
-use std::{io, process, sync::mpsc};
+use std::thread;
+use std::{io, sync::mpsc};
 
+use colored::Colorize;
 use config::Config;
 use crossterm::execute;
 use crossterm::{
@@ -37,15 +39,19 @@ fn program_installed(command: &str) -> bool {
 }
 
 fn main() {
-    if !program_installed("mpv") {
-        eprintln!("mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds");
-        return;
-    }
+    thread::spawn(|| {
+        if !program_installed("mpv") {
+            clear_screen();
+            eprintln!("{}", "mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
+            process::exit(1);
+        }
 
-    if !program_installed("yt-dlp") {
-        eprintln!("yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds");
-        return;
-    }
+        if !program_installed("yt-dlp") {
+            clear_screen();
+            eprintln!("{}", "yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
+            process::exit(1);
+        }
+    });
 
     let config = match Config::load_or_default() {
         Ok(loaded) => loaded,
