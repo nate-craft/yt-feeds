@@ -99,8 +99,8 @@ fn play(video: &Video) -> Result<(), Error> {
     process_while_loading(
         Command::new("mpv")
             .arg(url)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn(),
         move || {
             println!("{}\n", title.cyan().bold());

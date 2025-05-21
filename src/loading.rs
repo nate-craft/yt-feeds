@@ -20,6 +20,7 @@ where
     clear_screen();
     execute!(io::stdout(), cursor::MoveTo(0, 1)).expect("Failed to move cursor");
 
+    // output thread
     thread::spawn(move || {
         let mut step = 0;
         let steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"];
@@ -28,7 +29,10 @@ where
         execute!(io::stdout(), cursor::MoveTo(0, 1)).unwrap();
         print_fn();
         println!("  {}", steps[step]);
-        print!("\n{}\n\n▶ ", "Options: [(c)ancel]".green().italic());
+        print!(
+            "\n{}\n\n▶ ",
+            "Options: [(d)etach, (c)ancel]".green().italic()
+        );
         io::stdout().flush().unwrap();
 
         while let Err(_) = rx.recv_timeout(Duration::from_millis(150)) {
@@ -36,7 +40,11 @@ where
             execute!(io::stdout(), cursor::MoveTo(0, 1)).unwrap();
             print_fn();
             println!("  {}", steps[step]);
-            println!("\n{}\n\n{}", "Options: [(c)ancel]".green().italic(), "▶");
+            println!(
+                "\n{}\n\n{}",
+                "Options: [(d)etach, (c)ancel]".green().italic(),
+                "▶"
+            );
 
             execute!(io::stdout(), cursor::RestorePosition).unwrap();
             step = (step + 1) % steps.len();
@@ -44,6 +52,7 @@ where
             thread::sleep(std::time::Duration::from_millis(300));
         }
     });
+
     match task {
         Ok(command) => {
             let command = Arc::new(Mutex::new(command));
@@ -52,6 +61,7 @@ where
             let tx_finished = tx.clone();
             let tx_end_finished = tx_end.clone();
 
+            // task monitoring thread
             thread::spawn(move || loop {
                 if let Ok(result) = command_finished.lock().unwrap().try_wait() {
                     if let Some(status) = result {
@@ -91,13 +101,20 @@ where
                 thread::sleep(std::time::Duration::from_millis(100));
             });
 
+            // input thread
             thread::spawn(move || {
                 while let Err(_) = rx_in.try_recv() {
                     let mut input = String::new();
                     io::stdin().read_line(&mut input).unwrap();
-                    if input.trim().to_lowercase().eq("c") {
+                    let key = input.trim().to_lowercase();
+                    if key.eq("c") {
                         let _ = tx.send(true);
                         let _ = command.lock().unwrap().kill();
+                        let _ = tx_end.send(true);
+                        return;
+                    } else if key.eq("d") {
+                        let _ = tx.send(true);
+
                         let _ = tx_end.send(true);
                         return;
                     }
