@@ -5,7 +5,7 @@ use crate::{
     page::Page,
     search::fetch_channel,
     view::{Error, Message},
-    yt::{feed_channel, Channel, Channels},
+    yt::{fetch_channel_feed, Channel, Channels},
 };
 
 use super::View;
@@ -35,7 +35,7 @@ pub fn show(channels: &Channels) -> Message {
     let mut view = View::new(
         "New Subscriptions",
         "(p)revious, (n)ext, b(ack), q(uit)",
-        "Search:",
+        "▶",
     );
 
     loop {
@@ -83,7 +83,7 @@ pub fn show(channels: &Channels) -> Message {
 
                 let name = channel.name.clone();
                 let feed = run_while_loading(
-                    || feed_channel(&channel.id, 30),
+                    || fetch_channel_feed(&channel.id, 30),
                     move || {
                         println!("{}", "\nNew Subscriptions\n".cyan().bold());
                         print!("{} {}", "Downloading videos for".green(), name.yellow());

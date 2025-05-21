@@ -12,6 +12,7 @@ pub enum ViewPage {
     Search,
     Play(VideoIndex, LastView),
     Refreshing(LastView),
+    Information(VideoIndex, LastView),
 }
 
 #[derive(Clone)]
@@ -21,6 +22,8 @@ pub enum Message {
     Play(VideoIndex),
     Subscribe(Channel),
     Unsubscribe(ChannelIndex),
+    Information(VideoIndex, LastView),
+    MoreInformation(VideoIndex, LastView, String),
     Search,
     Quit,
     Refresh(ViewPage),
@@ -36,4 +39,15 @@ pub enum Error {
     VideoParsing,
     TomlError,
     HistoryParsing,
+}
+
+impl ViewPage {
+    pub fn or_inner(&self) -> &ViewPage {
+        match self {
+            ViewPage::Play(_, view_page)
+            | ViewPage::Refreshing(view_page)
+            | ViewPage::Information(_, view_page) => view_page,
+            _ => self,
+        }
+    }
 }

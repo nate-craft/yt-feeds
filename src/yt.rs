@@ -32,6 +32,7 @@ pub struct Video {
     pub id: String,
     pub watched: bool,
     pub upload: DateTime<Local>,
+    pub description: String,
     pub progress_seconds: Option<i32>,
 }
 
@@ -40,6 +41,7 @@ pub struct VideoAccumulator {
     id: Option<String>,
     title: Option<String>,
     upload: Option<DateTime<Local>>,
+    decription: Option<String>,
     available: bool,
 }
 
@@ -139,6 +141,7 @@ impl Video {
     pub fn new(
         title: impl Into<String>,
         id: impl Into<String>,
+        description: impl Into<String>,
         upload_date: DateTime<Local>,
     ) -> Video {
         Video {
@@ -147,6 +150,7 @@ impl Video {
             upload: upload_date,
             watched: false,
             progress_seconds: None,
+            description: description.into(),
         }
     }
     pub fn watched(&mut self) {
@@ -198,6 +202,8 @@ impl VideoAccumulator {
             );
         } else if key.eq("availability") {
             self.available = value.is_null();
+        } else if key.eq("description") {
+            self.decription = Some(value.as_str().unwrap().to_owned());
         }
         self
     }
@@ -212,12 +218,13 @@ impl TryFrom<VideoAccumulator> for Video {
         Ok(Video::new(
             value.title.ok_or(Error::VideoParsing)?,
             value.id.ok_or(Error::VideoParsing)?,
+            value.decription.ok_or(Error::VideoParsing)?,
             value.upload.ok_or(Error::VideoParsing)?,
         ))
     }
 }
 
-pub fn feed_channel(channel: &str, count: u32) -> Result<Vec<Video>, Error> {
+pub fn fetch_channel_feed(channel: &str, count: u32) -> Result<Vec<Video>, Error> {
     let cmd = Command::new("yt-dlp")
         .arg(format!("-I{}", count))
         .arg("--playlist-items")
@@ -253,4 +260,22 @@ pub fn feed_channel(channel: &str, count: u32) -> Result<Vec<Video>, Error> {
     } else {
         Ok(videos)
     }
+}
+
+pub fn fetch_video_description(video: &Video) -> Result<String, Error> {
+    let cmd = Command::new("yt-dlp")
+        .arg("--dump-json")
+        .arg(video.url())
+        .output()
+        .expect("Failed to execute yt-dlp");
+
+    let json_raw = String::from_utf8_lossy(&cmd.stdout);
+    serde_json::from_str(&json_raw)
+        .map_err(|_| Error::JsonError)
+        .and_then(|json: Value| {
+            json["description"]
+                .as_str()
+                .ok_or(Error::JsonError)
+                .map(|str| str.to_owned())
+        })
 }

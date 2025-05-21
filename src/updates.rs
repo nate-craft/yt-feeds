@@ -24,7 +24,7 @@ pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_coun
     channels.into_iter().for_each(|channel| {
         let tx = tx.clone();
         thread::spawn(move || {
-            let feed = yt::feed_channel(&channel.id, video_count);
+            let feed = yt::fetch_channel_feed(&channel.id, video_count);
             match feed {
                 Ok(feed) => {
                     tx.send(Channel::new(channel.name, channel.id, feed))

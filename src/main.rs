@@ -14,7 +14,7 @@ use crossterm::{
 };
 use updates::{check_updates, fetch_updates, Blocking};
 use view::{Message, ViewPage};
-use views::{feed_view, home_view, player_view, search_view};
+use views::{feed_view, home_view, information_view, player_view, search_view};
 use yt::{Channel, Channels};
 
 mod cache;
@@ -79,8 +79,6 @@ fn main() {
         }
     };
 
-    // state.channels.add_history();
-
     let (tx, rx) = mpsc::channel::<Channel>();
 
     // Auto update on startup
@@ -108,7 +106,6 @@ fn main() {
             ViewPage::FeedChannel(channel_index) => {
                 feed_view::show_channel(channel_index, &state.channels)
             }
-
             ViewPage::MixedFeed => feed_view::show_mixed(&state.channels),
             ViewPage::Search => search_view::show(&state.channels),
             ViewPage::Play(video_index, ref last_view) => {
@@ -152,6 +149,9 @@ fn main() {
                     _ => panic!(),
                 }
             }
+            ViewPage::Information(video_index, ref last_view) => {
+                information_view::show(&state.channels, video_index, last_view.clone())
+            }
         };
 
         handle_message(message, &mut state);
@@ -172,11 +172,20 @@ fn handle_message(message: Message, state: &mut AppState) {
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
                     eprintln!(
-                        "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                        err
+                            "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
+                            err
                     );
                 }
             }
+        }
+        Message::Information(video_index, view_page) => {
+            state.view = ViewPage::Information(video_index, view_page);
+        }
+        Message::MoreInformation(video_index, view_page, new_description) => {
+            let channel = state.channels.channel_mut(video_index.into()).unwrap();
+            let video = channel.video_mut(video_index).unwrap();
+            video.description = new_description;
+            state.view = ViewPage::Information(video_index, view_page);
         }
         Message::Subscribe(channel) => {
             state.channels.push(channel);

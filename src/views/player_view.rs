@@ -1,5 +1,6 @@
 use std::{
     process::{Command, Stdio},
+    rc::Rc,
     thread,
 };
 
@@ -25,15 +26,18 @@ pub fn show(
 
     let mut view = View::new(
         format!("\"{}\" - {}", video.title, channel.name).as_str(),
-        "(p)lay, (d)etach, (s)ave, (b)ack, (q)uit",
+        "(p)lay, (d)etach, (s)ave, (i)nformation, (b)ack, (q)uit",
         "▶",
     );
+
+    let last_view = last_view.or_inner();
 
     loop {
         view.clear_content();
 
         match view.show().to_lowercase().as_str() {
             "q" => return Message::Quit,
+            "i" => return Message::Information(index, Rc::new(last_view.clone())),
             "b" => match last_view {
                 ViewPage::FeedChannel(channel_index) => {
                     return Message::ChannelFeed(*channel_index)
