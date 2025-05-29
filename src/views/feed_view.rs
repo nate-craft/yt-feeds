@@ -9,7 +9,7 @@ use crate::{
     yt::{ChannelIndex, Channels, Video, VideoIndex},
 };
 
-use super::View;
+use super::{View, ViewInput};
 
 pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message {
     let channel = channels.channel(channel_index).unwrap();
@@ -18,11 +18,11 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
 
     clear_screen();
 
-    let mut page = Page::new(10, videos.len(), 3);
+    let mut page = Page::new(videos.len(), 3);
     let mut view = View::new(
-        format!("{}'s Feed", &channel.name).as_str(),
-        "(p)revious, (n)ext, (r)efresh, (u)nsubscribe, (b)ack, (q)uit",
-        "▶",
+        format!("{}'s Feed", &channel.name),
+        "(p)revious, (n)ext, (r)efresh, (u)nsubscribe, (b)ack, (q)uit".to_owned(),
+        "▶".to_owned(),
     );
 
     loop {
@@ -52,29 +52,31 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
                 }
             });
 
-        match view.show().to_lowercase().as_str() {
-            "q" => return Message::Quit,
-            "b" => return Message::Home,
-            "u" => return Message::Unsubscribe(channel_index),
-            "r" => return Message::Refresh(ViewPage::FeedChannel(channel_index)),
-            "n" => {
-                page.next_page();
-                view.clear_error();
-            }
-            "p" => {
-                page.prev_page();
-                view.clear_error();
-            }
-            input => {
-                if let Ok(index) = &input.parse::<usize>() {
-                    if page.item_is_at_index(*index) {
-                        return Message::Play(VideoIndex {
-                            channel_index: channel_index.0,
-                            video_index: *index,
-                        });
-                    }
+        match view.show() {
+            ViewInput::Char(char) => match char {
+                'q' => return Message::Quit,
+                'b' => return Message::Home,
+                'u' => return Message::Unsubscribe(channel_index),
+                'r' => return Message::Refresh(ViewPage::FeedChannel(channel_index)),
+                'n' => {
+                    page.next_page();
+                    view.clear_error();
                 }
-                view.set_error(format!("{} is not a valid option!", input));
+                'p' => {
+                    page.prev_page();
+                    view.clear_error();
+                }
+                input => {
+                    view.set_error(&format!("{} is not a valid option!", input));
+                }
+            },
+            ViewInput::Num(num) => {
+                if page.item_is_at_index(num) {
+                    return Message::Play(VideoIndex {
+                        channel_index: channel_index.0,
+                        video_index: num,
+                    });
+                }
             }
         }
     }
@@ -95,12 +97,12 @@ pub fn show_mixed(channels: &Channels) -> Message {
         .sorted_by(|a, b| b.3.upload.cmp(&a.3.upload))
         .collect();
 
-    let mut page = Page::new(10, videos.len(), 3);
+    let mut page = Page::new(videos.len(), 3);
 
     let mut view = View::new(
-        "Subscription Feed",
-        "(p)revious, (n)ext, (r)efresh, (b)ack, (q)uit",
-        "▶",
+        "Subscription Feed".to_owned(),
+        "(p)revious, (n)ext, (r)efresh, (b)ack, (q)uit".to_owned(),
+        "▶".to_owned(),
     );
 
     loop {
@@ -131,30 +133,31 @@ pub fn show_mixed(channels: &Channels) -> Message {
                 }
             });
 
-        match view.show().to_lowercase().as_str() {
-            "q" => return Message::Quit,
-            "b" => return Message::Home,
-            "r" => return Message::Refresh(ViewPage::MixedFeed),
-            "n" => {
-                page.next_page();
-                view.clear_error();
-            }
-            "p" => {
-                page.prev_page();
-                view.clear_error();
-            }
-            input => {
-                if let Ok(index) = &input.parse::<usize>() {
-                    let item = page.item_at_index(&videos, *index);
-                    if let Some((channel_index, video_index, _, _)) = item {
-                        return Message::Play(VideoIndex {
-                            channel_index: *channel_index,
-                            video_index: *video_index,
-                        });
-                    }
+        match view.show() {
+            ViewInput::Char(char) => match char {
+                'q' => return Message::Quit,
+                'b' => return Message::Home,
+                'r' => return Message::Refresh(ViewPage::MixedFeed),
+                'n' => {
+                    page.next_page();
+                    view.clear_error();
                 }
-
-                view.set_error(format!("{} is not a valid option!", input));
+                'p' => {
+                    page.prev_page();
+                    view.clear_error();
+                }
+                input => {
+                    view.set_error(&format!("{} is not a valid option!", input));
+                }
+            },
+            ViewInput::Num(num) => {
+                let item = page.item_at_index(&videos, num);
+                if let Some((channel_index, video_index, _, _)) = item {
+                    return Message::Play(VideoIndex {
+                        channel_index: *channel_index,
+                        video_index: *video_index,
+                    });
+                }
             }
         }
     }

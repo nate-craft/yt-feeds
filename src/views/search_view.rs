@@ -8,16 +8,27 @@ use crate::{
     yt::{fetch_channel_feed, Channel, Channels},
 };
 
-use super::View;
+use super::{View, ViewInput};
 
 pub fn show(channels: &Channels) -> Message {
-    let view = View::new("New Subscriptions", "b(ack), q(uit)", "Search:");
-    let input = view.show().to_lowercase();
+    let mut view = View::new(
+        "New Subscriptions".to_owned(),
+        "Esc(ape)".to_owned(),
+        "Search:".to_owned(),
+    );
 
-    if input.eq("q") {
-        return Message::Quit;
-    } else if input.eq("b") {
-        return Message::Home;
+    let mut input;
+
+    loop {
+        input = match view.show_with_input() {
+            Some(string) => string,
+            None => return Message::Home,
+        };
+        if input.is_empty() {
+            view.set_error("Search query can not be empty");
+        } else {
+            break;
+        }
     }
 
     let input_clone = input.clone();
@@ -30,12 +41,12 @@ pub fn show(channels: &Channels) -> Message {
         },
     );
 
-    let mut page = Page::new(10, results.len(), 1);
+    let mut page = Page::new(results.len(), 1);
 
     let mut view = View::new(
-        "New Subscriptions",
-        "(p)revious, (n)ext, b(ack), q(uit)",
-        "▶",
+        "New Subscriptions".to_owned(),
+        "(p)revious, (n)ext, b(ack), q(uit)".to_owned(),
+        "▶".to_owned(),
     );
 
     loop {
@@ -54,30 +65,30 @@ pub fn show(channels: &Channels) -> Message {
                 ));
             });
 
-        match view.show().to_lowercase().as_str() {
-            "q" => return Message::Quit,
-            "b" => return Message::Search,
-            "n" => {
-                page.next_page();
-                view.clear_error();
-            }
-            "p" => {
-                page.prev_page();
-                view.clear_error();
-            }
-            input => {
-                let Ok(index) = input.parse::<usize>() else {
-                    view.set_error(format!("{} is not a valid option!", input));
-                    continue;
-                };
-
-                let Some(channel) = page.item_at_index(&results, index) else {
-                    view.set_error(format!("{} is not a valid option!", input));
+        match view.show() {
+            ViewInput::Char(char) => match char {
+                'q' => return Message::Quit,
+                'b' => return Message::Search,
+                'n' => {
+                    page.next_page();
+                    view.clear_error();
+                }
+                'p' => {
+                    page.prev_page();
+                    view.clear_error();
+                }
+                input => {
+                    view.set_error(&format!("{} is not a valid option!", input));
+                }
+            },
+            ViewInput::Num(num) => {
+                let Some(channel) = page.item_at_index(&results, num) else {
+                    view.set_error(&format!("{} is not a valid option!", input));
                     continue;
                 };
 
                 if channels.has_channel(&channel.id) {
-                    view.set_error(format!("You are already subscribed to {}!", channel.name));
+                    view.set_error(&format!("You are already subscribed to {}!", channel.name));
                     continue;
                 }
 
@@ -100,18 +111,18 @@ pub fn show(channels: &Channels) -> Message {
                     }
                     Err(err) => match err {
                         Error::HistoryParsing => {
-                            view.set_error(format!(
+                            view.set_error(&format!(
                                 "{}: '{}'",
                                 "Could not find videos for channel", channel.name
                             ));
                         }
                         Error::CommandFailed(e) => {
-                            view.set_error(format!(
+                            view.set_error(&format!(
                                 "Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}",
                                 channel.id, e
                             ));
                         }
-                        _ => {}
+                        _ => panic!(),
                     },
                 }
             }

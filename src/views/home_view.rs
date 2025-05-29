@@ -7,8 +7,10 @@ use crate::{
     yt::{ChannelIndex, Channels},
 };
 
+use super::ViewInput;
+
 pub fn show(channels: &Channels) -> Message {
-    let mut page = Page::new(channels.len(), channels.len(), 1);
+    let mut page = Page::new(channels.len(), 1);
     let user = users::get_current_username()
         .map(|user| {
             let mut user = user.to_string_lossy().to_string();
@@ -27,9 +29,9 @@ pub fn show(channels: &Channels) -> Message {
         .unwrap_or("YT-Feeds".to_string());
 
     let mut view = View::new(
-        format!("{} Home", user).as_str(),
-        "(p)revious, (n)ext, (s)earch, (a)ll, (r)efresh, (q)uit",
-        "▶",
+        format!("{} Home", user),
+        "(p)revious, (n)ext, (s)earch, (a)ll, (r)efresh, (q)uit".to_owned(),
+        "▶".to_owned(),
     );
 
     loop {
@@ -47,26 +49,28 @@ pub fn show(channels: &Channels) -> Message {
                 ))
             });
 
-        match view.show().to_lowercase().as_str() {
-            "q" => return Message::Quit,
-            "s" => return Message::Search,
-            "a" => return Message::MixedFeed,
-            "r" => return Message::Refresh(ViewPage::Home),
-            "n" => {
-                page.next_page();
-                view.clear_error();
-            }
-            "p" => {
-                page.prev_page();
-                view.clear_error();
-            }
-            input => {
-                if let Ok(index) = &input.parse::<usize>() {
-                    if page.item_is_at_index(*index) {
-                        return Message::ChannelFeed(ChannelIndex(*index));
-                    }
+        match view.show() {
+            ViewInput::Char(char) => match char {
+                'q' => return Message::Quit,
+                's' => return Message::Search,
+                'a' => return Message::MixedFeed,
+                'r' => return Message::Refresh(ViewPage::Home),
+                'n' => {
+                    page.next_page();
+                    view.clear_error();
                 }
-                view.set_error(format!("{} is not a valid option!", &input));
+                'p' => {
+                    page.prev_page();
+                    view.clear_error();
+                }
+                input => {
+                    view.set_error(&format!("{} is not a valid option!", input));
+                }
+            },
+            ViewInput::Num(num) => {
+                if page.item_is_at_index(num) {
+                    return Message::ChannelFeed(ChannelIndex(num));
+                }
             }
         }
     }
