@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use colored::Colorize;
+use crossterm::style::Stylize;
 
 use crate::{
     clear_screen,

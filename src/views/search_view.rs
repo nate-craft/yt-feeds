@@ -1,4 +1,4 @@
-use colored::Colorize;
+use crossterm::style::Stylize;
 
 use crate::{
     loading::run_while_loading,
@@ -36,8 +36,8 @@ pub fn show(channels: &Channels) -> Message {
     let results = run_while_loading(
         || fetch_channel(&input, 20),
         move || {
-            println!("{}", "\nNew Subscriptions\n".cyan().bold());
-            print!("{} {}", "Searching:".green(), input_clone.yellow());
+            println!("{}", "\nNew Subscriptions\n".to_string().cyan().bold());
+            print!("{} {}", "Searching:".green(), input_clone.as_str().yellow());
         },
     );
 
@@ -60,8 +60,8 @@ pub fn show(channels: &Channels) -> Message {
                 view.add_line(format!(
                     "{}. {} ({})",
                     i.to_string().green(),
-                    channel.name.yellow(),
-                    channel.id.yellow()
+                    channel.name.as_str().yellow(),
+                    channel.id.as_str().yellow()
                 ));
             });
 
@@ -97,15 +97,19 @@ pub fn show(channels: &Channels) -> Message {
                     || fetch_channel_feed(&channel.id, 30),
                     move || {
                         println!("{}", "\nNew Subscriptions\n".cyan().bold());
-                        print!("{} {}", "Downloading videos for".green(), name.yellow());
+                        print!(
+                            "{} {}",
+                            "Downloading videos for".green(),
+                            name.as_str().yellow()
+                        );
                     },
                 );
 
                 match feed {
                     Ok(feed) => {
                         return Message::Subscribe(Channel::new(
-                            channel.name.clone(),
-                            channel.id.clone(),
+                            channel.name.as_str(),
+                            channel.id.as_str(),
                             feed,
                         ))
                     }

@@ -1,10 +1,10 @@
 use std::io::{self, Write};
 
-use colored::Colorize;
 use crossterm::{
     cursor::{self},
     event::{Event, KeyCode, KeyEvent},
     execute,
+    style::Stylize,
     terminal::{self, ClearType},
 };
 
@@ -55,14 +55,14 @@ impl View {
     pub fn show(&self) -> ViewInput {
         clear_screen();
         if let Some(err) = &self.error {
-            println!("{}", err.red().italic());
+            println!("{}", err.as_str().red().italic());
         }
-        println!("\n{}\n", self.title.cyan().bold());
+        println!("\n{}\n", self.title.as_str().cyan().bold());
         self.content.iter().for_each(|line| println!("{}", line));
         if !self.content.is_empty() {
             println!();
         }
-        println!("{}\n", self.options.green().italic());
+        println!("{}\n", self.options.as_str().green().italic());
         print!("{} ", self.input);
 
         io::stdout().flush().unwrap();
@@ -86,14 +86,14 @@ impl View {
     pub fn show_with_input(&self) -> Option<String> {
         clear_screen();
         if let Some(err) = &self.error {
-            println!("{}", err.red().italic());
+            println!("{}", err.as_str().red().italic());
         }
-        println!("\n{}\n", self.title.cyan().bold());
+        println!("\n{}\n", self.title.as_str().cyan().bold());
         self.content.iter().for_each(|line| println!("{}", line));
         if !self.content.is_empty() {
             println!();
         }
-        println!("{}\n", self.options.green().italic());
+        println!("{}\n", self.options.as_str().green().italic());
         print!("{} ", self.input);
 
         io::stdout().flush().unwrap();

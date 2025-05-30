@@ -1,4 +1,4 @@
-use colored::Colorize;
+use crossterm::style::Stylize;
 use itertools::Itertools;
 
 use crate::{
@@ -37,7 +37,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
                     view.add_line(format!(
                         "{}. {}\n   {} • {}\n",
                         i.to_string().green(),
-                        video.title.bright_yellow().underline(),
+                        video.title.as_str().yellow().bold().underlined(),
                         time_since_formatted(video.upload),
                         time_formatted_short(video.progress_seconds)
                     ));
@@ -45,7 +45,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
                     view.add_line(format!(
                         "{}. {}\n   {} • {}\n",
                         i.to_string().green(),
-                        video.title.yellow(),
+                        video.title.as_str().yellow(),
                         time_since_formatted(video.upload),
                         time_formatted_short(video.progress_seconds)
                     ));
@@ -116,7 +116,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
                     view.add_line(format!(
                         "{}. {}\n   {} • {} • {}\n",
                         i.to_string().green(),
-                        video.title.bright_yellow().underline(),
+                        video.title.as_str().yellow().bold().underlined(),
                         channel,
                         time_since_formatted(video.upload),
                         time_formatted_short(video.progress_seconds)
@@ -125,7 +125,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
                     view.add_line(format!(
                         "{}. {}\n   {} • {} • {}\n",
                         i.to_string().green(),
-                        video.title.yellow(),
+                        video.title.as_str().yellow(),
                         channel,
                         time_since_formatted(video.upload),
                         time_formatted_short(video.progress_seconds)

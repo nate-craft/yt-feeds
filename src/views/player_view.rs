@@ -4,11 +4,11 @@ use std::{
     thread,
 };
 
-use colored::Colorize;
+use crossterm::style::Stylize;
 
 use crate::{
     config::Config,
-    loading::process_while_loading,
+    loading::cmd_while_loading,
     view::{Error, Message, ViewPage},
     yt::{Channels, Video, VideoIndex},
 };
@@ -86,7 +86,7 @@ fn download(video: &Video, config: &Config) -> Result<(), Error> {
     let title = video.title.clone();
     let url = video.url();
 
-    process_while_loading(
+    cmd_while_loading(
         Command::new("yt-dlp")
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", config.saved_video_path))
@@ -95,8 +95,8 @@ fn download(video: &Video, config: &Config) -> Result<(), Error> {
             .stderr(Stdio::null())
             .spawn(),
         move || {
-            println!("{}\n", title.cyan().bold());
-            print!("{} '{}'", "Downloading ".green(), title.yellow());
+            print!("\r\n{}\r\n\r\n", title.as_str().cyan().bold());
+            print!("{} '{}'", "Downloading ".green(), title.as_str().yellow());
         },
     )
 }
@@ -105,15 +105,15 @@ fn play(video: &Video) -> Result<(), Error> {
     let title = video.title.clone();
     let url = video.url();
 
-    process_while_loading(
+    cmd_while_loading(
         Command::new("mpv")
             .arg(url)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn(),
         move || {
-            println!("{}\n", title.cyan().bold());
-            print!("{} '{}'", "Playing ".green(), title.yellow());
+            print!("\r\n{}\r\n\r\n", title.as_str().cyan().bold());
+            print!("{} '{}'", "Playing ".green(), title.as_str().yellow());
         },
     )
 }

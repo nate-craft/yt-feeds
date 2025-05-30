@@ -1,4 +1,4 @@
-use colored::Colorize;
+use crossterm::style::Stylize;
 
 use crate::{
     clear_screen,
@@ -19,7 +19,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
         "(m)ore, (b)ack, (q)uit".to_owned(),
         "▶".to_owned(),
     );
-    view.add_line(format!("{}\n", "Description:".yellow()));
+    view.add_line(format!("{}\n", "Description:".to_string().yellow()));
     view.add_line(video.description.clone());
 
     loop {
@@ -32,7 +32,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
                     let results = run_while_loading(
                         || fetch_video_description(video),
                         move || {
-                            println!("{}\n", title_moved.bold().cyan());
+                            println!("{}\n", title_moved.as_str().bold().cyan());
                             print!("{} ", "Fetching more information".green());
                         },
                     );

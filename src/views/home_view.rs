@@ -1,4 +1,4 @@
-use colored::Colorize;
+use crossterm::style::Stylize;
 
 use crate::{
     page::Page,
@@ -45,7 +45,7 @@ pub fn show(channels: &Channels) -> Message {
                 view.add_line(format!(
                     "{}. {}",
                     i.to_string().green(),
-                    channel.name.yellow()
+                    channel.name.as_str().yellow()
                 ))
             });
 

@@ -5,9 +5,9 @@ use std::rc::Rc;
 use std::thread;
 use std::{io, sync::mpsc};
 
-use colored::Colorize;
 use config::Config;
 use crossterm::execute;
+use crossterm::style::Stylize;
 use crossterm::{
     cursor,
     terminal::{self, ClearType},
