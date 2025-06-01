@@ -203,7 +203,7 @@ impl VideoAccumulator {
         } else if key.eq("availability") {
             self.available = value.is_null();
         } else if key.eq("description") {
-            self.decription = Some(value.as_str().unwrap().to_owned());
+            self.decription = Some(value.as_str().unwrap_or("N/A").to_owned());
         }
         self
     }
