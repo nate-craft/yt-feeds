@@ -20,6 +20,7 @@ use yt::{Channel, Channels};
 mod cache;
 mod config;
 mod loading;
+mod log;
 mod page;
 mod search;
 mod updates;
@@ -41,25 +42,21 @@ fn program_installed(command: &str) -> bool {
 fn main() {
     thread::spawn(|| {
         if !program_installed("mpv") {
-            clear_screen();
-            eprintln!("{}", "mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
-            process::exit(1);
+            log::err_and_exit("mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
         }
 
         if !program_installed("yt-dlp") {
-            clear_screen();
-            eprintln!("{}", "yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
-            process::exit(1);
+            log::err_and_exit("yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
         }
     });
 
     let config = match Config::load_or_default() {
         Ok(loaded) => loaded,
         Err(err) => {
-            panic!(
+            log::err_and_exit(format!(
                 "Could not retrieve local config directory. \nError: {:?}",
                 err
-            );
+            ));
         }
     };
 
@@ -118,7 +115,7 @@ fn main() {
                     Ok(history_fetched) => {
                         video.progress_seconds = Some(history_fetched.progress_seconds)
                     }
-                    Err(e) => eprintln!("Could not fetch watch history.\nError: {:?}", e),
+                    Err(e) => log::err(format!("Could not fetch watch history.\nError: {:?}", e)),
                 }
                 next
             }
@@ -171,10 +168,10 @@ fn handle_message(message: Message, state: &mut AppState) {
 
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
-                    eprintln!(
+                    log::err(format!(
                             "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
                             err
-                    );
+                    ));
                 }
             }
         }
@@ -201,16 +198,19 @@ fn handle_message(message: Message, state: &mut AppState) {
             state.view = ViewPage::Refreshing(Rc::new(last_view));
             try_cache_channels(&state.channels);
         }
-        Message::Quit => exit(),
+        Message::Quit => {
+            clear_screen();
+            process::exit(0);
+        }
     }
 }
 
 fn try_cache_channels(channels: &Channels) {
     if let Err(err) = cache::cache_channels(channels) {
-        eprintln!(
+        log::err(format!(
             "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
             err
-        );
+        ));
     }
 }
 
@@ -222,9 +222,4 @@ fn clear_screen() {
         cursor::MoveTo(0, 0)
     )
     .expect("Could not clear screen")
-}
-
-fn exit() -> ! {
-    clear_screen();
-    process::exit(0);
 }

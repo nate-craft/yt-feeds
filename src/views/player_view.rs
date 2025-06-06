@@ -9,6 +9,7 @@ use crossterm::style::Stylize;
 use crate::{
     config::Config,
     loading::cmd_while_loading,
+    log,
     view::{Error, Message, ViewPage},
     yt::{Channels, Video, VideoIndex},
 };
@@ -26,7 +27,7 @@ pub fn show(
 
     let mut view = View::new(
         format!("\"{}\" - {}", video.title, channel.name),
-        "(p)lay, (d)etach, (s)ave, (i)nformation, (b)ack, (q)uit".to_owned(),
+        "(p)lay, (d)etach, (s)ave, (P)lay + save, (i)nformation, (b)ack, (q)uit".to_owned(),
         "▶".to_owned(),
     );
 
@@ -49,6 +50,13 @@ pub fn show(
                 'p' => {
                     if let Err(Error::CommandFailed(e)) = play(video) {
                         view.set_error(&format!("Could not run play command: mpv.\nError: {}", e));
+                    } else {
+                        view.clear_error();
+                    }
+                }
+                'P' => {
+                    if let Err(Error::CommandFailed(e)) = play_and_download(video, config) {
+                        view.set_error(&format!("Could not play video\nError: {}", e));
                     } else {
                         view.clear_error();
                     }
@@ -80,6 +88,26 @@ pub fn show(
             }
         }
     }
+}
+
+fn play_and_download(video: &Video, config: &Config) -> Result<(), Error> {
+    let url = video.url();
+    let path = config.saved_video_path.clone();
+
+    thread::spawn(move || {
+        if let Err(error) = Command::new("yt-dlp")
+            .arg("-o")
+            .arg(format!("{}%(title)s.%(ext)s", path))
+            .arg(url)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            log::err(error);
+        }
+    });
+
+    play(video)
 }
 
 fn download(video: &Video, config: &Config) -> Result<(), Error> {

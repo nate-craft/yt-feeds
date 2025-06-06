@@ -1,5 +1,5 @@
 use crate::{
-    clear_screen,
+    log,
     view::Error,
     yt::{Channel, ChannelInfo, Video},
     Channels,
@@ -11,7 +11,6 @@ use std::{
     fs::{self, File},
     io::{BufReader, BufWriter, Read},
     path::{Path, PathBuf},
-    process,
 };
 
 pub fn load_channel(
@@ -19,10 +18,7 @@ pub fn load_channel(
     history: Option<&HashMap<String, WatchProgress>>,
 ) -> Result<Channel, Error> {
     let Ok(root) = data_directory() else {
-        eprintln!(
-            "{}",
-            "Could not retrieve local data directory. Caching cannot be enabled!"
-        );
+        log::err("Could not retrieve local data directory. Caching cannot be enabled!");
         return Err(Error::FileBadAccess);
     };
 
@@ -57,10 +53,7 @@ pub fn load_channel(
 
 pub fn fetch_cached_channels() -> Option<Vec<ChannelInfo>> {
     let Ok(root) = data_directory() else {
-        eprintln!(
-            "{}",
-            "Could not retrieve local data directory. Caching cannot be enabled!"
-        );
+        log::err("Could not retrieve local data directory. Caching cannot be enabled!");
         return None;
     };
 
@@ -80,7 +73,7 @@ pub fn fetch_cached_channels() -> Option<Vec<ChannelInfo>> {
             }
         }
         Err(err) => {
-            eprintln!("Could not open {:#?}\n{}", path, err);
+            log::err(format!("Could not open {:?}\n{}", path, err));
             None
         }
     }
@@ -106,7 +99,10 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
     if let Ok(file) = File::create(&root.join("channels.json")) {
         channels.iter().for_each(|channel| {
             if cache_videos(&root, &channel.id, &channel.videos).is_err() {
-                eprintln!("{}", "Error on caching video!");
+                log::err(format!(
+                    "Error on caching video for channel: {}!",
+                    channel.id
+                ));
             }
         });
 
@@ -248,9 +244,7 @@ fn mpv_shared_path() -> Result<PathBuf, Error> {
             .or(dirs::data_local_dir())
             .ok_or(Error::FileBadAccess),
         _ => {
-            clear_screen();
-            eprintln!("Could not find any directory for mpv. Report in github issues...");
-            process::exit(1);
+            log::err_and_exit("Could not find any directory for mpv. Report in github issues...");
         }
     }
 }

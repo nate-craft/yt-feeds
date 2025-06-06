@@ -84,6 +84,10 @@ winget install yt-dlp mpv
 
 </details>
 
+## Troubleshooting
+
+Error logs can be found in the `log.txt` in the locations as specified in the customization section.
+
 ## Customization
 
 Basic configuration is done in `yt-feeds.toml` located in the following locations:
@@ -97,7 +101,6 @@ Saved data and caches can be found in the following location:
 **Linux**: `~/.local/share/yt-feeds/`  
 **MacOS**: `~/Library/Application Support/yt-feeds/`  
 **Windows**: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Local\yt-feeds\`  
-
 
 ### MPV
 

@@ -41,6 +41,20 @@ pub enum Error {
     HistoryParsing,
 }
 
+impl ToString for Error {
+    fn to_string(&self) -> String {
+        match self {
+            Error::FileBadAccess => "Could not access file".to_owned(),
+            Error::CommandFailed(command) => format!("Could not run command: {}", command),
+            Error::JsonError => "Could not parse JSON".to_owned(),
+            Error::ChannelParsing => "Could not parse channel information from yt-dlp".to_owned(),
+            Error::VideoParsing => "Could not parse video information from yt-dlp".to_owned(),
+            Error::TomlError => "Could not load toml configuration".to_owned(),
+            Error::HistoryParsing => "Could not parse local MPV history".to_owned(),
+        }
+    }
+}
+
 impl ViewPage {
     pub fn or_inner(&self) -> &ViewPage {
         match self {
