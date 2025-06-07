@@ -6,5 +6,5 @@ ___
  - [x] Refactor mutable logic to message tree
  - [x] Add finder to feed view
  - [ ] Make errors much more descriptive
- - [ ] Add docs directory to reduce README clutter
+ - [x] Add docs directory to reduce README clutter
  - [ ] Add automated AUR upload
