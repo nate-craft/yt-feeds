@@ -8,7 +8,7 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 
-use crate::clear_screen;
+use crate::{clear_screen, page::Page};
 
 pub mod feed_view;
 pub mod home_view;
@@ -52,7 +52,15 @@ impl View {
         self.error = None;
     }
 
+    pub fn show_paged(&self, page: &Page) -> ViewInput {
+        self.show_inner(Some(page))
+    }
+
     pub fn show(&self) -> ViewInput {
+        self.show_inner(None)
+    }
+
+    fn show_inner(&self, page: Option<&Page>) -> ViewInput {
         clear_screen();
         if let Some(err) = &self.error {
             println!("{}", err.as_str().red().italic());
@@ -61,6 +69,20 @@ impl View {
         self.content.iter().for_each(|line| println!("{}", line));
         if !self.content.is_empty() {
             println!();
+        }
+        if let Some(page) = page {
+            let total = page.pages_count();
+            let current = page.page_current() + 1;
+            if total > 0 {
+                println!(
+                    "{}{}{}{}{}\n",
+                    "Page: [".yellow(),
+                    current.to_string().dark_yellow(),
+                    "/".yellow(),
+                    total.to_string().yellow(),
+                    "]".yellow()
+                )
+            }
         }
         println!("{}\n", self.options.as_str().green().italic());
         print!("{} ", self.input);

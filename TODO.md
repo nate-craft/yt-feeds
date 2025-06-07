@@ -5,3 +5,4 @@ ___
  - [ ] Add docs directory to reduce README clutter
  - [ ] Add automated AUR upload
  - [ ] Add fuzzy finder to feed view
+ - [ ] Make errors much more descriptive

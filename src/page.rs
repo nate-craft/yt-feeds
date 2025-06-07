@@ -2,6 +2,8 @@ use std::cmp::{max, min};
 
 use crossterm::terminal;
 
+use crate::log;
+
 pub struct Page {
     pub current_index: usize,
     pub count_per_page: usize,
@@ -28,6 +30,16 @@ impl Page {
 
     pub fn last_index(&self) -> usize {
         self.count_total
+    }
+
+    pub fn pages_count(&self) -> usize {
+        self.count_total / self.count_per_page
+    }
+
+    pub fn page_current(&self) -> usize {
+        let pages = self.pages_count() as f32;
+        let progress = (self.current_index + 1) as f32 / self.count_total as f32;
+        (pages * progress as f32) as usize
     }
 
     pub fn next_page(&mut self) {

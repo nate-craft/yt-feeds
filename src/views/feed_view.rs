@@ -60,13 +60,13 @@ pub fn show_channel(
             });
 
         //TODO: allow fuzzy finder input via fzf mode key of some sort
-        match view.show() {
+        match view.show_paged(&page) {
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Home,
                 'u' => return Message::Unsubscribe(channel_index),
                 'r' => {
-                    return Message::Refresh(ViewPage::FeedChannel(
+                    return Message::Refresh(ViewPage::ChannelFeed(
                         channel_index,
                         Some(page.current_index),
                     ))
@@ -74,7 +74,7 @@ pub fn show_channel(
                 'm' => {
                     return Message::MoreVideos(
                         channel_index,
-                        ViewPage::FeedChannel(channel_index, Some(page.current_index)),
+                        ViewPage::ChannelFeed(channel_index, Some(page.current_index)),
                         page.last_index(),
                         page.current_index,
                     )
@@ -155,7 +155,7 @@ pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
                 }
             });
 
-        match view.show() {
+        match view.show_paged(&page) {
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Home,

@@ -32,6 +32,7 @@ pub fn show(
     );
 
     let last_view = last_view.or_inner();
+    let mut played = false;
 
     loop {
         view.clear_content();
@@ -40,17 +41,24 @@ pub fn show(
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'i' => return Message::Information(index, Rc::new(last_view.clone())),
-                'b' => match last_view {
-                    ViewPage::FeedChannel(channel_index, last_index) => {
-                        return Message::ChannelFeed(*channel_index, *last_index)
+                'b' => {
+                    if played {
+                        return Message::Played(Rc::new(last_view.clone()), index);
                     }
-                    ViewPage::MixedFeed(last_index) => return Message::MixedFeed(*last_index),
-                    _ => panic!(),
-                },
+
+                    match last_view {
+                        ViewPage::ChannelFeed(channel_index, last_index) => {
+                            return Message::ChannelFeed(*channel_index, *last_index)
+                        }
+                        ViewPage::MixedFeed(last_index) => return Message::MixedFeed(*last_index),
+                        _ => panic!(),
+                    }
+                }
                 'p' => {
                     if let Err(Error::CommandFailed(e)) = play(video) {
                         view.set_error(&format!("Could not run play command: mpv.\nError: {}", e));
                     } else {
+                        played = true;
                         view.clear_error();
                     }
                 }
@@ -58,6 +66,7 @@ pub fn show(
                     if let Err(Error::CommandFailed(e)) = play_and_download(video, config) {
                         view.set_error(&format!("Could not play video\nError: {}", e));
                     } else {
+                        played = true;
                         view.clear_error();
                     }
                 }

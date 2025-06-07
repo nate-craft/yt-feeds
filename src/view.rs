@@ -4,11 +4,12 @@ use crate::yt::{Channel, ChannelIndex, VideoIndex};
 
 pub type LastView = Rc<ViewPage>;
 pub type LastIndex = usize;
+pub type VideoCount = usize;
 
 #[derive(Clone)]
 pub enum ViewPage {
     Home,
-    FeedChannel(ChannelIndex, Option<LastIndex>),
+    ChannelFeed(ChannelIndex, Option<LastIndex>),
     MixedFeed(Option<LastIndex>),
     Search,
     Play(VideoIndex, LastView),
@@ -21,11 +22,12 @@ pub enum Message {
     MixedFeed(Option<LastIndex>),
     ChannelFeed(ChannelIndex, Option<LastIndex>),
     Play(VideoIndex),
+    Played(LastView, VideoIndex),
     Subscribe(Channel),
     Unsubscribe(ChannelIndex),
     Information(VideoIndex, LastView),
     MoreInformation(VideoIndex, LastView, String),
-    MoreVideos(ChannelIndex, ViewPage, usize, LastIndex),
+    MoreVideos(ChannelIndex, ViewPage, VideoCount, LastIndex),
     Refresh(ViewPage),
     Search,
     Quit,
@@ -41,6 +43,24 @@ pub enum Error {
     VideoParsing,
     TomlError,
     HistoryParsing,
+}
+
+impl From<ViewPage> for Message {
+    fn from(view: ViewPage) -> Self {
+        match view {
+            ViewPage::Home => Message::Home,
+            ViewPage::ChannelFeed(channel_index, last_index) => {
+                Message::ChannelFeed(channel_index, last_index)
+            }
+            ViewPage::MixedFeed(last_index) => Message::MixedFeed(last_index),
+            ViewPage::Search => Message::Search,
+            ViewPage::Play(video_index, _) => Message::Play(video_index),
+            ViewPage::Refreshing(view_page) => Message::Refresh(view_page.as_ref().clone()),
+            ViewPage::Information(video_index, view_page) => {
+                Message::Information(video_index, view_page)
+            }
+        }
+    }
 }
 
 impl ToString for Error {
