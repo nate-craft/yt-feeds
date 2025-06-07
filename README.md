@@ -2,6 +2,8 @@
 
 YT-Feeds is a cross-platform simple, fast, and distraction free CLI application to view videos from your favorite channels.
 
+![Preview](assets/preview.png)
+
 ## Features
 
 - 🔥 Blazingly fast - far more than any web or electron-based system
