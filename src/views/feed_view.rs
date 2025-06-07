@@ -23,6 +23,7 @@ pub fn show_channel(
     clear_screen();
 
     let mut page = Page::new(videos.len(), 3);
+    //TODO: keep track of fuzzy finder filter
     let mut view = View::new(
         format!("{}'s Feed", &channel.name),
         "(p)revious, (n)ext, (m)ore, (r)efresh, (u)nsubscribe, (b)ack, (q)uit".to_owned(),
@@ -33,7 +34,7 @@ pub fn show_channel(
 
     loop {
         view.clear_content();
-
+        //TODO: choose views that fit fuzzy finder filter
         page.current_page(&videos)
             .iter()
             .enumerate()
@@ -58,6 +59,7 @@ pub fn show_channel(
                 }
             });
 
+        //TODO: allow fuzzy finder input via fzf mode key of some sort
         match view.show() {
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
