@@ -26,6 +26,10 @@ impl Page {
         &videos[self.current_index..(self.current_index + self.count_per_page)]
     }
 
+    pub fn last_index(&self) -> usize {
+        self.count_total
+    }
+
     pub fn next_page(&mut self) {
         self.current_index = min(
             self.current_index + self.count_per_page,
@@ -40,15 +44,15 @@ impl Page {
         ) as usize;
     }
 
-    pub fn item_at_index<'a, T>(&self, videos: &'a [T], index: usize) -> Option<&'a T> {
+    pub fn item_at_index<'a, T>(&self, elements: &'a [T], index: usize) -> Option<&'a T> {
         if self.item_is_at_index(index) {
-            videos.get(index)
+            elements.get(index + self.current_index)
         } else {
             None
         }
     }
 
     pub fn item_is_at_index(&self, index: usize) -> bool {
-        index <= (self.current_index + self.count_per_page - 1) && index >= self.current_index
+        index <= self.count_per_page - 1 && index + self.current_index <= self.count_total
     }
 }

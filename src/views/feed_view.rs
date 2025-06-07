@@ -11,7 +11,11 @@ use crate::{
 
 use super::{View, ViewInput};
 
-pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message {
+pub fn show_channel(
+    channel_index: ChannelIndex,
+    channels: &Channels,
+    last_index: Option<usize>,
+) -> Message {
     let channel = channels.channel(channel_index).unwrap();
 
     let videos: Vec<(usize, &Video)> = channel.videos.iter().enumerate().collect();
@@ -21,9 +25,11 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
     let mut page = Page::new(videos.len(), 3);
     let mut view = View::new(
         format!("{}'s Feed", &channel.name),
-        "(p)revious, (n)ext, (r)efresh, (u)nsubscribe, (b)ack, (q)uit".to_owned(),
+        "(p)revious, (n)ext, (m)ore, (r)efresh, (u)nsubscribe, (b)ack, (q)uit".to_owned(),
         "▶".to_owned(),
     );
+
+    page.current_index = last_index.unwrap_or(page.current_index);
 
     loop {
         view.clear_content();
@@ -31,7 +37,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
         page.current_page(&videos)
             .iter()
             .enumerate()
-            .map(|(i, video)| (i + page.current_index, video))
+            .map(|(i, video)| (i, video))
             .for_each(|(i, (_, video))| {
                 if video.watched {
                     view.add_line(format!(
@@ -57,7 +63,20 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
                 'q' => return Message::Quit,
                 'b' => return Message::Home,
                 'u' => return Message::Unsubscribe(channel_index),
-                'r' => return Message::Refresh(ViewPage::FeedChannel(channel_index)),
+                'r' => {
+                    return Message::Refresh(ViewPage::FeedChannel(
+                        channel_index,
+                        Some(page.current_index),
+                    ))
+                }
+                'm' => {
+                    return Message::MoreVideos(
+                        channel_index,
+                        ViewPage::FeedChannel(channel_index, Some(page.current_index)),
+                        page.last_index(),
+                        page.current_index,
+                    )
+                }
                 'n' => {
                     page.next_page();
                     view.clear_error();
@@ -74,7 +93,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
                 if page.item_is_at_index(num) {
                     return Message::Play(VideoIndex {
                         channel_index: channel_index.0,
-                        video_index: num,
+                        video_index: page.current_index + num,
                     });
                 }
             }
@@ -82,7 +101,7 @@ pub fn show_channel(channel_index: ChannelIndex, channels: &Channels) -> Message
     }
 }
 
-pub fn show_mixed(channels: &Channels) -> Message {
+pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
     let videos: Vec<(usize, usize, &String, &Video)> = channels
         .iter()
         .enumerate()
@@ -98,6 +117,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
         .collect();
 
     let mut page = Page::new(videos.len(), 3);
+    page.current_index = last_index.unwrap_or(page.current_index);
 
     let mut view = View::new(
         "Subscription Feed".to_owned(),
@@ -110,7 +130,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
         page.current_page(&videos)
             .iter()
             .enumerate()
-            .map(|(i, video)| (i + page.current_index, video))
+            .map(|(i, video)| (i, video))
             .for_each(|(i, (_, _, channel, video))| {
                 if video.watched {
                     view.add_line(format!(
@@ -137,7 +157,7 @@ pub fn show_mixed(channels: &Channels) -> Message {
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Home,
-                'r' => return Message::Refresh(ViewPage::MixedFeed),
+                'r' => return Message::Refresh(ViewPage::MixedFeed(Some(page.current_index))),
                 'n' => {
                     page.next_page();
                     view.clear_error();

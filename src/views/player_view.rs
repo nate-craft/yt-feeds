@@ -41,10 +41,10 @@ pub fn show(
                 'q' => return Message::Quit,
                 'i' => return Message::Information(index, Rc::new(last_view.clone())),
                 'b' => match last_view {
-                    ViewPage::FeedChannel(channel_index) => {
-                        return Message::ChannelFeed(*channel_index)
+                    ViewPage::FeedChannel(channel_index, last_index) => {
+                        return Message::ChannelFeed(*channel_index, *last_index)
                     }
-                    ViewPage::MixedFeed => return Message::MixedFeed,
+                    ViewPage::MixedFeed(last_index) => return Message::MixedFeed(*last_index),
                     _ => panic!(),
                 },
                 'p' => {

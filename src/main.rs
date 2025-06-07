@@ -17,6 +17,9 @@ use view::{Message, ViewPage};
 use views::{feed_view, home_view, information_view, player_view, search_view};
 use yt::{Channel, Channels};
 
+use crate::loading::run_while_loading;
+use crate::yt::fetch_more_videos;
+
 mod cache;
 mod config;
 mod loading;
@@ -100,10 +103,10 @@ fn main() {
 
         let message: Message = match state.view {
             ViewPage::Home => home_view::show(&state.channels),
-            ViewPage::FeedChannel(channel_index) => {
-                feed_view::show_channel(channel_index, &state.channels)
+            ViewPage::FeedChannel(channel_index, last_index) => {
+                feed_view::show_channel(channel_index, &state.channels, last_index)
             }
-            ViewPage::MixedFeed => feed_view::show_mixed(&state.channels),
+            ViewPage::MixedFeed(last_index) => feed_view::show_mixed(&state.channels, last_index),
             ViewPage::Search => search_view::show(&state.channels),
             ViewPage::Play(video_index, ref last_view) => {
                 let next = player_view::show(&state.channels, video_index, &last_view, &config);
@@ -120,7 +123,7 @@ fn main() {
                 next
             }
             ViewPage::Refreshing(ref last_view) => {
-                if let ViewPage::FeedChannel(channel_index) = **last_view {
+                if let ViewPage::FeedChannel(channel_index, _) = **last_view {
                     let channel = state.channels.channel(channel_index).unwrap();
                     fetch_updates(tx.clone(), vec![channel.into()], config.video_count);
                     check_updates(&rx, &mut state.channels, Blocking::WaitForN(1));
@@ -141,8 +144,10 @@ fn main() {
 
                 match **last_view {
                     ViewPage::Home => Message::Home,
-                    ViewPage::FeedChannel(channel_index) => Message::ChannelFeed(channel_index),
-                    ViewPage::MixedFeed => Message::MixedFeed,
+                    ViewPage::FeedChannel(channel_index, last_index) => {
+                        Message::ChannelFeed(channel_index, last_index)
+                    }
+                    ViewPage::MixedFeed(last_index) => Message::MixedFeed(last_index),
                     _ => panic!(),
                 }
             }
@@ -151,15 +156,17 @@ fn main() {
             }
         };
 
-        handle_message(message, &mut state);
+        handle_message(message, &mut state, &config);
     }
 }
 
-fn handle_message(message: Message, state: &mut AppState) {
+fn handle_message(message: Message, state: &mut AppState, config: &Config) {
     match message {
-        Message::MixedFeed => state.view = ViewPage::MixedFeed,
+        Message::MixedFeed(last_index) => state.view = ViewPage::MixedFeed(last_index),
         Message::Home => state.view = ViewPage::Home,
-        Message::ChannelFeed(channel_index) => state.view = ViewPage::FeedChannel(channel_index),
+        Message::ChannelFeed(channel_index, last_index) => {
+            state.view = ViewPage::FeedChannel(channel_index, last_index)
+        }
         Message::Search => state.view = ViewPage::Search,
         Message::Play(video_index) => {
             let channel = state.channels.channel_mut(video_index.into()).unwrap();
@@ -169,9 +176,9 @@ fn handle_message(message: Message, state: &mut AppState) {
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
                     log::err(format!(
-                            "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                            err
-                    ));
+                                "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
+                                err
+                        ));
                 }
             }
         }
@@ -201,6 +208,38 @@ fn handle_message(message: Message, state: &mut AppState) {
         Message::Quit => {
             clear_screen();
             process::exit(0);
+        }
+        Message::MoreVideos(channel_index, view_page, total_videos, last_viewed_index) => {
+            let channel = state.channels.channel_mut(channel_index).unwrap();
+            let name = channel.name.clone();
+
+            let success = run_while_loading(
+                || fetch_more_videos(config, total_videos, channel),
+                move || {
+                    println!(
+                        "{}{}\n",
+                        name.clone().cyan().bold(),
+                        "'s - Feed".cyan().bold()
+                    );
+                    print!(
+                        "{} {}",
+                        "Fetching more videos for ".green(),
+                        name.clone().yellow()
+                    );
+                },
+            );
+
+            if success {
+                try_cache_channels(&state.channels);
+            }
+
+            state.view = match view_page {
+                ViewPage::FeedChannel(channel_index, _) => {
+                    ViewPage::FeedChannel(channel_index, Some(last_viewed_index))
+                }
+                ViewPage::MixedFeed(_) => ViewPage::MixedFeed(Some(last_viewed_index)),
+                _ => panic!(),
+            }
         }
     }
 }

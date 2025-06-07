@@ -20,11 +20,11 @@ pub enum Blocking {
     NoWait,
 }
 
-pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_count: u32) {
+pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_count: usize) {
     channels.into_iter().for_each(|channel| {
         let tx = tx.clone();
         thread::spawn(move || {
-            let feed = yt::fetch_channel_feed(&channel.id, video_count);
+            let feed = yt::fetch_channel_feed(&channel.id, video_count, None);
             match feed {
                 Ok(feed) => {
                     tx.send(Channel::new(channel.name, channel.id, feed))

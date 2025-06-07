@@ -53,7 +53,7 @@ pub fn show(channels: &Channels) -> Message {
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 's' => return Message::Search,
-                'a' => return Message::MixedFeed,
+                'a' => return Message::MixedFeed(Some(page.current_index)),
                 'r' => return Message::Refresh(ViewPage::Home),
                 'n' => {
                     page.next_page();
@@ -69,7 +69,10 @@ pub fn show(channels: &Channels) -> Message {
             },
             ViewInput::Num(num) => {
                 if page.item_is_at_index(num) {
-                    return Message::ChannelFeed(ChannelIndex(num));
+                    return Message::ChannelFeed(
+                        ChannelIndex(num + page.current_index),
+                        Some(page.current_index),
+                    );
                 }
             }
         }

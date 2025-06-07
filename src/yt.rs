@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     ops::{Deref, DerefMut},
     process::Command,
@@ -8,7 +9,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{cache, view::Error};
+use crate::{cache, config::Config, log, view::Error};
 
 #[derive(Debug, Clone)]
 pub struct Channel {
@@ -224,14 +225,25 @@ impl TryFrom<VideoAccumulator> for Video {
     }
 }
 
-pub fn fetch_channel_feed(channel: &str, count: u32) -> Result<Vec<Video>, Error> {
+pub fn fetch_channel_feed(
+    channel: &str,
+    count: usize,
+    start: Option<usize>,
+) -> Result<Vec<Video>, Error> {
     let cmd = Command::new("yt-dlp")
-        .arg(format!("-I{}", count))
+        // .arg(format!("-I{}", count))
         .arg("--playlist-items")
-        .arg(format!("1:{}", count))
+        .arg(format!(
+            "{}:{}",
+            start.unwrap_or(1),
+            start.unwrap_or(1) + count
+        ))
         .arg("--flat-playlist")
         .arg("--dump-json")
-        .arg(format!("{}{}", "https://www.youtube.com/channel/", channel))
+        .arg(format!(
+            "https://www.youtube.com/channel/{}/videos",
+            channel
+        ))
         .arg("--extractor-args")
         .arg("youtubetab:approximate_date")
         .output()
@@ -260,6 +272,40 @@ pub fn fetch_channel_feed(channel: &str, count: u32) -> Result<Vec<Video>, Error
     } else {
         Ok(videos)
     }
+}
+
+pub fn fetch_more_videos(config: &Config, last_index: usize, channel: &mut Channel) -> bool {
+    match fetch_channel_feed(&channel.id, config.video_count, Some(last_index)) {
+        Ok(feed) => {
+            // for new_video in feed {
+            //     if !channel
+            //         .videos
+            //         .iter()
+            //         .any(|existing_video| existing_video.id == new_video.id)
+            //     {
+            //         channel.videos.push(new_video);
+            //     }
+            // }
+            //
+            feed.into_iter()
+                .for_each(|video| channel.videos.push(video));
+            channel.videos.sort_by(|a, b| b.upload.cmp(&a.upload));
+            return true;
+        }
+        Err(err) => match err {
+            Error::VideoParsing => {
+                log::err(format!(
+                    "Could not add more videos for channel: '{}'",
+                    channel.name
+                ));
+            }
+            Error::CommandFailed(e) => {
+                log::err(format!("Could not add in more videos for channel: '{}' with command 'yt-dlp'.\nError: {}", channel.name, e));
+            }
+            err => panic!("Error: {:?}", err),
+        },
+    }
+    return false;
 }
 
 pub fn fetch_video_description(video: &Video) -> Result<String, Error> {

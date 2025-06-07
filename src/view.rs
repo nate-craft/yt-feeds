@@ -3,12 +3,13 @@ use std::rc::Rc;
 use crate::yt::{Channel, ChannelIndex, VideoIndex};
 
 pub type LastView = Rc<ViewPage>;
+pub type LastIndex = usize
 
 #[derive(Clone)]
 pub enum ViewPage {
     Home,
-    FeedChannel(ChannelIndex),
-    MixedFeed,
+    FeedChannel(ChannelIndex, Option<LastIndex>),
+    MixedFeed(Option<LastIndex>),
     Search,
     Play(VideoIndex, LastView),
     Refreshing(LastView),
@@ -17,16 +18,17 @@ pub enum ViewPage {
 
 #[derive(Clone)]
 pub enum Message {
-    MixedFeed,
-    ChannelFeed(ChannelIndex),
+    MixedFeed(Option<LastIndex>),
+    ChannelFeed(ChannelIndex, Option<LastIndex>),
     Play(VideoIndex),
     Subscribe(Channel),
     Unsubscribe(ChannelIndex),
     Information(VideoIndex, LastView),
     MoreInformation(VideoIndex, LastView, String),
+    MoreVideos(ChannelIndex, ViewPage, usize, LastIndex),
+    Refresh(ViewPage),
     Search,
     Quit,
-    Refresh(ViewPage),
     Home,
 }
 

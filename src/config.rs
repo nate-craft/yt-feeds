@@ -11,7 +11,7 @@ use crate::view::Error;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub video_count: u32,
+    pub video_count: usize,
     pub saved_video_path: String,
     pub refresh_on_start: bool,
 }

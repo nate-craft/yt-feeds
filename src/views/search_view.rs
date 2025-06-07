@@ -55,7 +55,7 @@ pub fn show(channels: &Channels) -> Message {
         results
             .iter()
             .enumerate()
-            .map(|(i, channel)| (i + page.current_index, channel))
+            .map(|(i, channel)| (i, channel))
             .for_each(|(i, channel)| {
                 view.add_line(format!(
                     "{}. {} ({})",
@@ -94,7 +94,7 @@ pub fn show(channels: &Channels) -> Message {
 
                 let name = channel.name.clone();
                 let feed = run_while_loading(
-                    || fetch_channel_feed(&channel.id, 30),
+                    || fetch_channel_feed(&channel.id, 30, None),
                     move || {
                         println!("{}", "\nNew Subscriptions\n".cyan().bold());
                         print!(
