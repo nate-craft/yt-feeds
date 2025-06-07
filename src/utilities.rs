@@ -1,4 +1,46 @@
 use chrono::{DateTime, Days, Local};
+use crossterm::style::{Attribute, Color, StyledContent, Stylize};
+
+fn apply_style(
+    text: &str,
+    color: Option<Color>,
+    underline: bool,
+    bold: bool,
+) -> StyledContent<String> {
+    let mut styled_text = text.to_string().with(Color::Reset);
+
+    if let Some(c) = color {
+        styled_text = styled_text.with(c);
+    }
+
+    if underline {
+        styled_text = styled_text.attribute(Attribute::Underlined);
+    }
+
+    if bold {
+        styled_text = styled_text.attribute(Attribute::Bold);
+    }
+
+    styled_text
+}
+
+pub fn format_substring(
+    str: &str,
+    query: Option<&str>,
+    bold: bool,
+    color: Option<Color>,
+) -> String {
+    if let Some(query) = query {
+        if let Some(pos) = str.to_lowercase().find(&query.to_lowercase()) {
+            let before = apply_style(&str[..pos], color, false, bold);
+            let matched = apply_style(&str[pos..pos + query.len()], Some(Color::Red), true, true);
+            let after = apply_style(&str[pos + query.len()..], color, false, bold);
+
+            return format!("{}{}{}", before, matched, after);
+        }
+    }
+    return apply_style(str, color, false, bold).to_string();
+}
 
 pub fn time_formatted_short(time_second: Option<i32>) -> String {
     if let Some(time_second) = time_second {

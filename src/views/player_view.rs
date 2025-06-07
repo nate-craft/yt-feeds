@@ -38,6 +38,7 @@ pub fn show(
         view.clear_content();
 
         match view.show() {
+            ViewInput::Esc => view.set_error("Escape is not a valid option!"),
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'i' => return Message::Information(index, Rc::new(last_view.clone())),

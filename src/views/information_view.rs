@@ -24,6 +24,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
 
     loop {
         match view.show() {
+            ViewInput::Esc => view.set_error("Escape is not a valid option!"),
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Play(index),

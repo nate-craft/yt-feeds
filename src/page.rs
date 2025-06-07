@@ -2,12 +2,11 @@ use std::cmp::{max, min};
 
 use crossterm::terminal;
 
-use crate::log;
-
 pub struct Page {
     pub current_index: usize,
     pub count_per_page: usize,
     pub count_total: usize,
+    pub lines_per_element: usize,
 }
 
 impl Page {
@@ -21,10 +20,11 @@ impl Page {
                 terminal::size().unwrap().1 as usize / lines_per_element - 4,
             ),
             count_total,
+            lines_per_element,
         }
     }
 
-    pub fn current_page<'a, T>(&self, videos: &'a Vec<T>) -> &'a [T] {
+    pub fn current_page<'a, T>(&self, videos: &'a [T]) -> &'a [T] {
         &videos[self.current_index..(self.current_index + self.count_per_page)]
     }
 
@@ -33,13 +33,11 @@ impl Page {
     }
 
     pub fn pages_count(&self) -> usize {
-        self.count_total / self.count_per_page
+        (self.count_total as f32 / max(self.count_per_page, 1) as f32).ceil() as usize
     }
 
     pub fn page_current(&self) -> usize {
-        let pages = self.pages_count() as f32;
-        let progress = (self.current_index + 1) as f32 / self.count_total as f32;
-        (pages * progress as f32) as usize
+        (self.current_index as f32 / max(self.count_per_page, 1) as f32).ceil() as usize + 1
     }
 
     pub fn next_page(&mut self) {

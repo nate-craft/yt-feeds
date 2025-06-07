@@ -50,6 +50,7 @@ pub fn show(channels: &Channels) -> Message {
             });
 
         match view.show() {
+            ViewInput::Esc => view.set_error("Escape is not a valid option!"),
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 's' => return Message::Search,

@@ -22,6 +22,7 @@ use crate::yt::fetch_more_videos;
 
 mod cache;
 mod config;
+mod finder;
 mod loading;
 mod log;
 mod page;

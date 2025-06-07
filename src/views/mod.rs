@@ -1,8 +1,8 @@
 use std::io::{self, Write};
 
 use crossterm::{
-    cursor::{self},
-    event::{Event, KeyCode, KeyEvent},
+    cursor,
+    event::{Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
     style::Stylize,
     terminal::{self, ClearType},
@@ -19,6 +19,7 @@ pub mod search_view;
 pub enum ViewInput {
     Char(char),
     Num(usize),
+    Esc,
 }
 
 pub struct View {
@@ -27,6 +28,8 @@ pub struct View {
     input: String,
     content: Vec<String>,
     error: Option<String>,
+    pages_progress: Option<(usize, usize)>,
+    filter: Option<String>,
 }
 
 impl View {
@@ -37,7 +40,17 @@ impl View {
             input,
             content: Vec::new(),
             error: None,
+            pages_progress: None,
+            filter: None,
         }
+    }
+
+    pub fn update_page(&mut self, page: Option<&Page>) {
+        self.pages_progress = page.map(|page| (page.page_current(), page.pages_count()));
+    }
+
+    pub fn update_filter(&mut self, filter: Option<String>) {
+        self.filter = filter;
     }
 
     pub fn add_line(&mut self, line: String) {
@@ -52,27 +65,20 @@ impl View {
         self.error = None;
     }
 
-    pub fn show_paged(&self, page: &Page) -> ViewInput {
-        self.show_inner(Some(page))
-    }
-
     pub fn show(&self) -> ViewInput {
-        self.show_inner(None)
-    }
-
-    fn show_inner(&self, page: Option<&Page>) -> ViewInput {
         clear_screen();
         if let Some(err) = &self.error {
             println!("{}", err.as_str().red().italic());
         }
+
         println!("\n{}\n", self.title.as_str().cyan().bold());
         self.content.iter().for_each(|line| println!("{}", line));
+
         if !self.content.is_empty() {
             println!();
         }
-        if let Some(page) = page {
-            let total = page.pages_count();
-            let current = page.page_current() + 1;
+
+        if let Some((current, total)) = self.pages_progress {
             if total > 0 {
                 println!(
                     "{}{}{}{}{}\n",
@@ -84,22 +90,47 @@ impl View {
                 )
             }
         }
+
         println!("{}\n", self.options.as_str().green().italic());
-        print!("{} ", self.input);
+        if let Some(filter) = &self.filter {
+            print!(
+                "{} {}{}{}",
+                "Filtering".green(),
+                "\"".green(),
+                filter.clone().yellow(),
+                "\"".green()
+            );
+        }
 
         io::stdout().flush().unwrap();
 
-        crossterm::terminal::enable_raw_mode().unwrap();
+        execute!(io::stdout(), cursor::Hide).unwrap();
+        terminal::enable_raw_mode().unwrap();
 
         loop {
             let event = crossterm::event::read().unwrap();
-            if let Event::Key(KeyEvent { code, .. }) = event {
+            if let Event::Key(KeyEvent {
+                code, modifiers, ..
+            }) = event
+            {
+                if let KeyCode::Char('c') = code {
+                    if modifiers.eq(&KeyModifiers::CONTROL) {
+                        execute!(io::stdout(), cursor::Show).unwrap();
+                        terminal::disable_raw_mode().unwrap();
+                        return ViewInput::Char('q');
+                    }
+                }
                 if let KeyCode::Char(c) = code {
-                    crossterm::terminal::disable_raw_mode().unwrap();
+                    terminal::disable_raw_mode().unwrap();
+                    execute!(io::stdout(), cursor::Show).unwrap();
                     return match c.to_digit(10) {
                         Some(num) => ViewInput::Num(num as usize),
                         None => ViewInput::Char(c),
                     };
+                } else if let KeyCode::Esc = code {
+                    terminal::disable_raw_mode().unwrap();
+                    execute!(io::stdout(), cursor::Show).unwrap();
+                    return ViewInput::Esc;
                 }
             }
         }
@@ -110,23 +141,50 @@ impl View {
         if let Some(err) = &self.error {
             println!("{}", err.as_str().red().italic());
         }
+
         println!("\n{}\n", self.title.as_str().cyan().bold());
         self.content.iter().for_each(|line| println!("{}", line));
+
         if !self.content.is_empty() {
             println!();
         }
+
+        if let Some((current, total)) = self.pages_progress {
+            if total > 0 {
+                println!(
+                    "{}{}{}{}{}\n",
+                    "Page: [".yellow(),
+                    current.to_string().dark_yellow(),
+                    "/".yellow(),
+                    total.to_string().yellow(),
+                    "]".yellow()
+                )
+            }
+        }
+
         println!("{}\n", self.options.as_str().green().italic());
         print!("{} ", self.input);
 
         io::stdout().flush().unwrap();
 
-        crossterm::terminal::enable_raw_mode().unwrap();
+        terminal::enable_raw_mode().unwrap();
+        execute!(io::stdout(), cursor::Hide).unwrap();
         let mut input = String::new();
 
         loop {
             let event = crossterm::event::read().unwrap();
-            if let Event::Key(KeyEvent { code, .. }) = event {
+            if let Event::Key(KeyEvent {
+                code, modifiers, ..
+            }) = event
+            {
                 match code {
+                    KeyCode::Char('c') => {
+                        if modifiers.eq(&KeyModifiers::CONTROL) {
+                            execute!(io::stdout(), cursor::Show).unwrap();
+                            terminal::disable_raw_mode().unwrap();
+                            return None;
+                        }
+                    }
                     KeyCode::Char(c) => {
                         input.push(c);
                         print!("{}", c);
@@ -145,13 +203,16 @@ impl View {
                         .unwrap();
                     }
                     KeyCode::Esc => {
-                        crossterm::terminal::disable_raw_mode().unwrap();
+                        execute!(io::stdout(), cursor::Show).unwrap();
+                        terminal::disable_raw_mode().unwrap();
                         return None;
                     }
                     KeyCode::Enter => {
-                        crossterm::terminal::disable_raw_mode().unwrap();
+                        execute!(io::stdout(), cursor::Show).unwrap();
+                        terminal::disable_raw_mode().unwrap();
                         return Some(input.trim().to_owned());
                     }
+
                     _ => {}
                 }
             }
