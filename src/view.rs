@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::yt::{Channel, ChannelIndex, VideoIndex};
 
 pub type LastView = Rc<ViewPage>;
-pub type LastIndex = usize
+pub type LastIndex = usize;
 
 #[derive(Clone)]
 pub enum ViewPage {
