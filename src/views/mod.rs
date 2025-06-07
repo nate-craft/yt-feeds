@@ -114,13 +114,14 @@ impl View {
             }) = event
             {
                 if let KeyCode::Char('c') = code {
-                    if modifiers.eq(&KeyModifiers::CONTROL) {
-                        execute!(io::stdout(), cursor::Show).unwrap();
-                        terminal::disable_raw_mode().unwrap();
-                        return ViewInput::Char('q');
-                    }
-                }
-                if let KeyCode::Char(c) = code {
+                    terminal::disable_raw_mode().unwrap();
+                    execute!(io::stdout(), cursor::Show).unwrap();
+                    return if modifiers.eq(&KeyModifiers::CONTROL) {
+                        ViewInput::Char('q')
+                    } else {
+                        ViewInput::Char('c')
+                    };
+                } else if let KeyCode::Char(c) = code {
                     terminal::disable_raw_mode().unwrap();
                     execute!(io::stdout(), cursor::Show).unwrap();
                     return match c.to_digit(10) {
@@ -183,6 +184,10 @@ impl View {
                             execute!(io::stdout(), cursor::Show).unwrap();
                             terminal::disable_raw_mode().unwrap();
                             return None;
+                        } else {
+                            input.push('c');
+                            print!("{}", 'c');
+                            io::stdout().flush().unwrap();
                         }
                     }
                     KeyCode::Char(c) => {
