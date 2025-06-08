@@ -8,7 +8,7 @@ use crate::{
     finder::Finder,
     page::Page,
     utilities::{self, time_formatted_short, time_since_formatted},
-    view::{Message, ViewPage},
+    view::{Message, PlayType, ViewPage},
     yt::{ChannelIndex, Channels, Video, VideoIndex},
 };
 
@@ -224,15 +224,15 @@ fn show_feed(
                     .item_at_index(&finder.videos_or(&videos), num);
 
                 if let Some(VideoEntry::Mixed(channel_index, video_index, _, _)) = item {
-                    return Message::Play(VideoIndex {
+                    return Message::Play(PlayType::Existing(VideoIndex {
                         channel_index: *channel_index,
                         video_index: *video_index,
-                    });
+                    }));
                 } else if let Some(VideoEntry::Channel(video_index, _)) = item {
-                    return Message::Play(VideoIndex {
+                    return Message::Play(PlayType::Existing(VideoIndex {
                         channel_index: *channel_index.unwrap(),
                         video_index: *video_index,
-                    });
+                    }));
                 }
             }
         }

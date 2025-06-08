@@ -8,28 +8,42 @@ use crossterm::style::Stylize;
 
 use crate::{
     config::Config,
-    loading::cmd_while_loading,
+    loading::{cmd_while_loading, run_while_loading},
     log,
-    view::{Error, Message, ViewPage},
-    yt::{Channels, Video, VideoIndex},
+    view::{Error, Message, PlayType, ViewPage},
+    yt::{fetch_channel_feed, Channel, Channels, VideoInfo},
 };
 
 use super::{View, ViewInput};
 
 pub fn show(
     channels: &Channels,
-    index: VideoIndex,
+    play_type: &PlayType,
     last_view: &ViewPage,
     config: &Config,
 ) -> Message {
-    let channel = channels.channel(index.into()).unwrap();
-    let video = channel.video(index).unwrap();
+    let (url, title, mut view) = match &play_type {
+        PlayType::Existing(video_index) => {
+            let channel = channels.channel((*video_index).into()).unwrap();
+            let video = channel.video(*video_index).unwrap();
+            let view = View::new(
+                format!("\"{}\" - {}", video.title, channel.name),
+                "(p)lay, (d)etach, (s)ave, (P)lay + save, (i)nformation, (b)ack, (q)uit".to_owned(),
+                "▶".to_owned(),
+            );
 
-    let mut view = View::new(
-        format!("\"{}\" - {}", video.title, channel.name),
-        "(p)lay, (d)etach, (s)ave, (P)lay + save, (i)nformation, (b)ack, (q)uit".to_owned(),
-        "▶".to_owned(),
-    );
+            (video.url(), video.title.clone(), view)
+        }
+        PlayType::New(video_info) => {
+            let view = View::new(
+                format!("\"{}\" - {}", video_info.title, video_info.channel.name),
+                "(p)lay, (d)etach, (s)ave, (P)lay + save, (S)ubscribe, (b)ack, (q)uit".to_owned(),
+                "▶".to_owned(),
+            );
+
+            (video_info.url(), video_info.title.clone(), view)
+        }
+    };
 
     let last_view = last_view.or_inner();
     let mut played = false;
@@ -41,22 +55,15 @@ pub fn show(
             ViewInput::Esc => return Message::Quit,
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
-                'i' => return Message::Information(index, Rc::new(last_view.clone())),
-                'b' => {
-                    if played {
-                        return Message::Played(Rc::new(last_view.clone()), index);
-                    }
-
-                    match last_view {
-                        ViewPage::ChannelFeed(channel_index, last_index) => {
-                            return Message::ChannelFeed(*channel_index, *last_index)
-                        }
-                        ViewPage::MixedFeed(last_index) => return Message::MixedFeed(*last_index),
-                        _ => panic!(),
+                'i' => {
+                    if let PlayType::Existing(index) = play_type {
+                        return Message::Information(*index, Rc::new(last_view.clone()));
+                    } else {
+                        view.set_error("i is not a valid option!");
                     }
                 }
                 'p' => {
-                    if let Err(Error::CommandFailed(e)) = play(video) {
+                    if let Err(Error::CommandFailed(e)) = play(&title, &url) {
                         view.set_error(&format!("Could not run play command: mpv.\nError: {}", e));
                     } else {
                         played = true;
@@ -64,7 +71,7 @@ pub fn show(
                     }
                 }
                 'P' => {
-                    if let Err(Error::CommandFailed(e)) = play_and_download(video, config) {
+                    if let Err(Error::CommandFailed(e)) = play_and_download(&title, &url, config) {
                         view.set_error(&format!("Could not play video\nError: {}", e));
                     } else {
                         played = true;
@@ -72,14 +79,14 @@ pub fn show(
                     }
                 }
                 's' => {
-                    if let Err(Error::CommandFailed(e)) = download(video, config) {
+                    if let Err(Error::CommandFailed(e)) = download(&title, &url, config) {
                         view.set_error(&format!("Could not run download video\nError: {}", e));
                     } else {
                         view.clear_error();
                     }
                 }
                 'd' => {
-                    let url = video.url();
+                    let url = url.to_owned();
                     thread::spawn(|| {
                         Command::new("mpv")
                             .arg(url)
@@ -88,6 +95,33 @@ pub fn show(
                             .spawn()
                     });
                     view.clear_error();
+                }
+                'b' => {
+                    if played {
+                        if let PlayType::Existing(index) = play_type {
+                            return Message::Played(Rc::new(last_view.clone()), Some(*index));
+                        } else {
+                            return Message::Played(Rc::new(last_view.clone()), None);
+                        }
+                    }
+
+                    match last_view {
+                        ViewPage::ChannelFeed(channel_index, last_index) => {
+                            return Message::ChannelFeed(*channel_index, *last_index)
+                        }
+                        ViewPage::MixedFeed(last_index) => return Message::MixedFeed(*last_index),
+                        ViewPage::SearchVideos => return Message::SearchVideos,
+                        _ => panic!(),
+                    }
+                }
+                'S' => {
+                    if let PlayType::New(info) = play_type {
+                        if let Some(result) = subscribe(&mut view, info, config) {
+                            return result;
+                        }
+                    } else {
+                        view.set_error("S is not a valid option!");
+                    }
                 }
                 input => {
                     view.set_error(&format!("{} is not a valid option!", input));
@@ -100,15 +134,57 @@ pub fn show(
     }
 }
 
-fn play_and_download(video: &Video, config: &Config) -> Result<(), Error> {
-    let url = video.url();
+fn subscribe(view: &mut View, info: &VideoInfo, config: &Config) -> Option<Message> {
+    let name = info.channel.name.clone();
+    let feed = run_while_loading(
+        || fetch_channel_feed(&info.channel.id, config.videos_per_channel, None),
+        move || {
+            println!("{}", "\nNew Subscriptions\n".cyan().bold());
+            print!(
+                "{} {}",
+                "Downloading videos for".green(),
+                name.as_str().yellow()
+            );
+        },
+    );
+
+    match feed {
+        Ok(feed) => {
+            return Some(Message::Subscribe(Channel::new(
+                info.channel.name.as_str(),
+                info.channel.id.as_str(),
+                feed,
+            )));
+        }
+        Err(err) => match err {
+            Error::VideoParsing => {
+                view.set_error(&format!(
+                    "{}: '{}'",
+                    "Could not find videos for channel",
+                    info.channel.name.as_str()
+                ));
+            }
+            Error::CommandFailed(e) => {
+                view.set_error(&format!(
+                    "Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}",
+                    info.channel.name, e
+                ));
+            }
+            _ => panic!(),
+        },
+    }
+    return None;
+}
+
+fn play_and_download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
     let path = config.saved_video_path.clone();
+    let url_clone = url.to_owned();
 
     thread::spawn(move || {
         if let Err(error) = Command::new("yt-dlp")
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", path))
-            .arg(url)
+            .arg(url_clone)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
@@ -117,12 +193,12 @@ fn play_and_download(video: &Video, config: &Config) -> Result<(), Error> {
         }
     });
 
-    play(video)
+    play(title, url)
 }
 
-fn download(video: &Video, config: &Config) -> Result<(), Error> {
-    let title = video.title.clone();
-    let url = video.url();
+fn download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
+    let title = title.to_owned();
+    let url = url.to_owned();
 
     cmd_while_loading(
         Command::new("yt-dlp")
@@ -139,9 +215,9 @@ fn download(video: &Video, config: &Config) -> Result<(), Error> {
     )
 }
 
-fn play(video: &Video) -> Result<(), Error> {
-    let title = video.title.clone();
-    let url = video.url();
+fn play(title: &str, url: &str) -> Result<(), Error> {
+    let title = title.to_owned();
+    let url = url.to_owned();
 
     cmd_while_loading(
         Command::new("mpv")

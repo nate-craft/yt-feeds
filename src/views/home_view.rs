@@ -30,7 +30,7 @@ pub fn show(channels: &Channels) -> Message {
 
     let mut view = View::new(
         format!("{} Home", user),
-        "(p)revious, (n)ext, (s)earch, (a)ll, (r)efresh, (q)uit".to_owned(),
+        "(p)revious, (n)ext, (a)ll, (s)ubscribe, (v)ideo search, (r)efresh, (q)uit".to_owned(),
         "▶".to_owned(),
     );
 
@@ -53,7 +53,8 @@ pub fn show(channels: &Channels) -> Message {
             ViewInput::Esc => return Message::Quit,
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
-                's' => return Message::Search,
+                's' => return Message::SearchChannels,
+                'v' => return Message::SearchVideos,
                 'a' => return Message::MixedFeed(Some(page.current_index)),
                 'r' => return Message::Refresh(ViewPage::Home),
                 'n' => {

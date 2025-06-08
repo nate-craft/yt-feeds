@@ -62,7 +62,17 @@ impl Page {
         }
     }
 
+    pub fn take_item_at_index<T>(&self, elements: &mut Vec<T>, index: usize) -> Option<T> {
+        if self.item_is_at_index(index) {
+            Some(elements.remove(index + self.current_index))
+        } else {
+            None
+        }
+    }
+
     pub fn item_is_at_index(&self, index: usize) -> bool {
-        index <= self.count_per_page - 1 && index + self.current_index <= self.count_total
+        self.count_per_page != 0
+            && index <= self.count_per_page - 1
+            && index + self.current_index <= self.count_total
     }
 }

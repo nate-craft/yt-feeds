@@ -24,6 +24,13 @@ pub struct ChannelInfo {
     pub name: String,
 }
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+pub struct VideoInfo {
+    pub id: String,
+    pub title: String,
+    pub channel: ChannelInfo,
+}
+
 #[derive(Debug)]
 pub struct Channels(pub Vec<Channel>);
 
@@ -44,6 +51,7 @@ pub struct VideoAccumulator {
     upload: Option<DateTime<Local>>,
     decription: Option<String>,
     available: bool,
+    is_short: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -163,6 +171,12 @@ impl Video {
     }
 }
 
+impl VideoInfo {
+    pub fn url(&self) -> String {
+        format!("{}{}", "https://www.youtube.com/watch?v=", self.id)
+    }
+}
+
 impl From<Channel> for ChannelInfo {
     fn from(value: Channel) -> Self {
         ChannelInfo {
@@ -205,7 +219,10 @@ impl VideoAccumulator {
             self.available = value.is_null();
         } else if key.eq("description") {
             self.decription = Some(value.as_str().unwrap_or("N/A").to_owned());
+        } else if key.eq("url") {
+            self.is_short = value.as_str().unwrap().contains("/shorts/");
         }
+
         self
     }
 }
@@ -213,8 +230,8 @@ impl VideoAccumulator {
 impl TryFrom<VideoAccumulator> for Video {
     type Error = Error;
     fn try_from(value: VideoAccumulator) -> Result<Self, Error> {
-        if !value.available {
-            return Err(Error::VideoParsing);
+        if !value.available || value.is_short {
+            return Err(Error::VideoNotAvailable);
         }
         Ok(Video::new(
             value.title.ok_or(Error::VideoParsing)?,
@@ -231,7 +248,6 @@ pub fn fetch_channel_feed(
     start: Option<usize>,
 ) -> Result<Vec<Video>, Error> {
     let cmd = Command::new("yt-dlp")
-        // .arg(format!("-I{}", count))
         .arg("--playlist-items")
         .arg(format!(
             "{}:{}",
@@ -275,18 +291,8 @@ pub fn fetch_channel_feed(
 }
 
 pub fn fetch_more_videos(config: &Config, last_index: usize, channel: &mut Channel) -> bool {
-    match fetch_channel_feed(&channel.id, config.video_count, Some(last_index)) {
+    match fetch_channel_feed(&channel.id, config.videos_per_channel, Some(last_index)) {
         Ok(feed) => {
-            // for new_video in feed {
-            //     if !channel
-            //         .videos
-            //         .iter()
-            //         .any(|existing_video| existing_video.id == new_video.id)
-            //     {
-            //         channel.videos.push(new_video);
-            //     }
-            // }
-            //
             feed.into_iter()
                 .for_each(|video| channel.videos.push(video));
             channel.videos.sort_by(|a, b| b.upload.cmp(&a.upload));

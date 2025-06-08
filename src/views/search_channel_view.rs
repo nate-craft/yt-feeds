@@ -1,6 +1,7 @@
 use crossterm::style::Stylize;
 
 use crate::{
+    config::Config,
     loading::run_while_loading,
     page::Page,
     search::fetch_channel,
@@ -10,7 +11,7 @@ use crate::{
 
 use super::{View, ViewInput};
 
-pub fn show(channels: &Channels) -> Message {
+pub fn show(channels: &Channels, config: &Config) -> Message {
     let mut view = View::new(
         "New Subscriptions".to_owned(),
         "Esc(ape)".to_owned(),
@@ -51,8 +52,9 @@ pub fn show(channels: &Channels) -> Message {
 
     loop {
         view.clear_content();
+        view.update_page(Some(&page));
 
-        results
+        page.current_page(&results)
             .iter()
             .enumerate()
             .map(|(i, channel)| (i, channel))
@@ -69,7 +71,7 @@ pub fn show(channels: &Channels) -> Message {
             ViewInput::Esc => return Message::Quit,
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
-                'b' => return Message::Search,
+                'b' => return Message::SearchChannels,
                 'n' => {
                     page.next_page();
                     view.clear_error();
@@ -95,7 +97,7 @@ pub fn show(channels: &Channels) -> Message {
 
                 let name = channel.name.clone();
                 let feed = run_while_loading(
-                    || fetch_channel_feed(&channel.id, 30, None),
+                    || fetch_channel_feed(&channel.id, config.videos_per_channel, None),
                     move || {
                         println!("{}", "\nNew Subscriptions\n".cyan().bold());
                         print!(

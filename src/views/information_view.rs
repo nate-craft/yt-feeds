@@ -3,7 +3,7 @@ use crossterm::style::Stylize;
 use crate::{
     clear_screen,
     loading::run_while_loading,
-    view::{LastView, Message},
+    view::{LastView, Message, PlayType},
     yt::{fetch_video_description, Channels, VideoIndex},
 };
 
@@ -27,7 +27,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
             ViewInput::Esc => return Message::Quit,
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
-                'b' => return Message::Play(index),
+                'b' => return Message::Play(PlayType::Existing(index)),
                 'm' => {
                     let title_moved = title.clone();
                     let results = run_while_loading(

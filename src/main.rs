@@ -14,10 +14,11 @@ use crossterm::{
 };
 use updates::{check_updates, fetch_updates, Blocking};
 use view::{Message, ViewPage};
-use views::{feed_view, home_view, information_view, player_view, search_view};
+use views::{feed_view, home_view, information_view, player_view, search_channel_view};
 use yt::{Channel, Channels};
 
 use crate::loading::run_while_loading;
+use crate::views::search_video_view;
 use crate::yt::fetch_more_videos;
 
 mod cache;
@@ -57,7 +58,7 @@ impl AppState {
         } else {
             AppState {
                 channels: Channels::default(),
-                view: ViewPage::Search,
+                view: ViewPage::SearchChannels,
                 root_dir: cache::data_directory().ok(),
                 tx: tx,
                 rx: rx,
@@ -102,7 +103,7 @@ fn main() {
                 .iter()
                 .map(|channel| channel.into())
                 .collect(),
-            config.video_count,
+            config.videos_per_channel,
         );
         try_cache_channels(&state.channels);
     }
@@ -115,14 +116,15 @@ fn main() {
 
         let message: Message = match state.view {
             ViewPage::Home => home_view::show(&state.channels),
-            ViewPage::Search => search_view::show(&state.channels),
+            ViewPage::SearchChannels => search_channel_view::show(&state.channels, &config),
+            ViewPage::SearchVideos => search_video_view::show(&config),
             ViewPage::Refreshing(ref last_view) => last_view.as_ref().clone().into(),
             ViewPage::MixedFeed(last_index) => feed_view::show_mixed(&state.channels, last_index),
             ViewPage::ChannelFeed(channel_index, last_index) => {
                 feed_view::show_channel(channel_index, &state.channels, last_index)
             }
-            ViewPage::Play(video_index, ref last_view) => {
-                player_view::show(&state.channels, video_index, &last_view, &config)
+            ViewPage::Play(ref play_type, ref last_view) => {
+                player_view::show(&state.channels, play_type, &last_view, &config)
             }
             ViewPage::Information(video_index, ref last_view) => {
                 information_view::show(&state.channels, video_index, last_view.clone())
@@ -135,17 +137,23 @@ fn main() {
 
 fn handle_message(message: Message, state: &mut AppState, config: &Config) {
     match message {
-        Message::MixedFeed(last_index) => state.view = ViewPage::MixedFeed(last_index),
         Message::Home => state.view = ViewPage::Home,
+        Message::MixedFeed(last_index) => state.view = ViewPage::MixedFeed(last_index),
         Message::ChannelFeed(channel_index, last_index) => {
             state.view = ViewPage::ChannelFeed(channel_index, last_index)
         }
-        Message::Search => state.view = ViewPage::Search,
+        Message::SearchChannels => state.view = ViewPage::SearchChannels,
+        Message::SearchVideos => state.view = ViewPage::SearchVideos,
         Message::Play(video_index) => {
             state.view = ViewPage::Play(video_index, Rc::new(state.view.clone()));
         }
         Message::Played(view_page, video_index) => {
             state.view = view_page.as_ref().to_owned();
+
+            // do not cache single searched video playing
+            let Some(video_index) = video_index else {
+                return;
+            };
 
             // mark watched
             let channel = state.channels.channel_mut(video_index.into()).unwrap();
@@ -194,7 +202,11 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             state.view = ViewPage::Refreshing(Rc::new(last_view.clone()));
             if let ViewPage::ChannelFeed(channel_index, _) = last_view {
                 let channel = state.channels.channel(channel_index).unwrap();
-                fetch_updates(state.tx.clone(), vec![channel.into()], config.video_count);
+                fetch_updates(
+                    state.tx.clone(),
+                    vec![channel.into()],
+                    config.videos_per_channel,
+                );
                 check_updates(&state.rx, &mut state.channels, Blocking::WaitForN(1));
             } else {
                 fetch_updates(
@@ -204,7 +216,7 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
                         .iter()
                         .map(|channel| channel.into())
                         .collect(),
-                    config.video_count,
+                    config.videos_per_channel,
                 );
 
                 let number_updates = state.channels.len();

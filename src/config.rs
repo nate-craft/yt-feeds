@@ -11,7 +11,8 @@ use crate::view::Error;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub video_count: usize,
+    pub videos_per_channel: usize,
+    pub videos_per_search: usize,
     pub saved_video_path: String,
     pub refresh_on_start: bool,
 }
@@ -32,7 +33,8 @@ impl Config {
 
         if !Path::exists(&file) {
             let default_config = Config {
-                video_count: 30,
+                videos_per_channel: 60,
+                videos_per_search: 60,
                 saved_video_path: format!(
                     "{}{}",
                     dirs::video_dir()
