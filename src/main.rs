@@ -18,6 +18,7 @@ use views::{feed_view, home_view, information_view, player_view, search_channel_
 use yt::{Channel, Channels};
 
 use crate::loading::run_while_loading;
+use crate::view::{LastSearch, PlayType};
 use crate::views::search_video_view;
 use crate::yt::fetch_more_videos;
 
@@ -38,6 +39,7 @@ pub struct AppState {
     channels: Channels,
     view: ViewPage,
     root_dir: Option<PathBuf>,
+    last_search: Option<LastSearch>,
     tx: mpsc::Sender<Channel>,
     rx: mpsc::Receiver<Channel>,
 }
@@ -52,6 +54,7 @@ impl AppState {
                 channels: Channels::new(&channels_cached),
                 view: ViewPage::Home,
                 root_dir: cache::data_directory().ok(),
+                last_search: None,
                 tx: tx,
                 rx: rx,
             }
@@ -60,6 +63,7 @@ impl AppState {
                 channels: Channels::default(),
                 view: ViewPage::SearchChannels,
                 root_dir: cache::data_directory().ok(),
+                last_search: None,
                 tx: tx,
                 rx: rx,
             }
@@ -117,7 +121,7 @@ fn main() {
         let message: Message = match state.view {
             ViewPage::Home => home_view::show(&state.channels),
             ViewPage::SearchChannels => search_channel_view::show(&state.channels, &config),
-            ViewPage::SearchVideos => search_video_view::show(&config),
+            ViewPage::SearchVideos => search_video_view::show(&config, &state.last_search),
             ViewPage::Refreshing(ref last_view) => last_view.as_ref().clone().into(),
             ViewPage::MixedFeed(last_index) => feed_view::show_mixed(&state.channels, last_index),
             ViewPage::ChannelFeed(channel_index, last_index) => {
@@ -137,15 +141,27 @@ fn main() {
 
 fn handle_message(message: Message, state: &mut AppState, config: &Config) {
     match message {
-        Message::Home => state.view = ViewPage::Home,
+        Message::Home => {
+            state.last_search = None;
+            state.view = ViewPage::Home
+        }
         Message::MixedFeed(last_index) => state.view = ViewPage::MixedFeed(last_index),
         Message::ChannelFeed(channel_index, last_index) => {
             state.view = ViewPage::ChannelFeed(channel_index, last_index)
         }
         Message::SearchChannels => state.view = ViewPage::SearchChannels,
-        Message::SearchVideos => state.view = ViewPage::SearchVideos,
-        Message::Play(video_index) => {
-            state.view = ViewPage::Play(video_index, Rc::new(state.view.clone()));
+        Message::SearchVideos => {
+            state.view = ViewPage::SearchVideos;
+        }
+        Message::SearchVideosClean => {
+            state.view = ViewPage::SearchVideos;
+            state.last_search = None;
+        }
+        Message::Play(play_type) => {
+            if let PlayType::New(_, cached_search) = &play_type {
+                state.last_search = cached_search.clone();
+            }
+            state.view = ViewPage::Play(play_type, Rc::new(state.view.clone()));
         }
         Message::Played(view_page, video_index) => {
             state.view = view_page.as_ref().to_owned();
@@ -173,9 +189,9 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
                     log::err(format!(
-                                    "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                                    err
-                            ));
+                                        "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
+                                        err
+                                ));
                 }
             }
         }

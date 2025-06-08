@@ -34,7 +34,7 @@ pub fn show(
 
             (video.url(), video.title.clone(), view)
         }
-        PlayType::New(video_info) => {
+        PlayType::New(video_info, _) => {
             let view = View::new(
                 format!("\"{}\" - {}", video_info.title, video_info.channel.name),
                 "(p)lay, (d)etach, (s)ave, (P)lay + save, (S)ubscribe, (b)ack, (q)uit".to_owned(),
@@ -104,18 +104,10 @@ pub fn show(
                             return Message::Played(Rc::new(last_view.clone()), None);
                         }
                     }
-
-                    match last_view {
-                        ViewPage::ChannelFeed(channel_index, last_index) => {
-                            return Message::ChannelFeed(*channel_index, *last_index)
-                        }
-                        ViewPage::MixedFeed(last_index) => return Message::MixedFeed(*last_index),
-                        ViewPage::SearchVideos => return Message::SearchVideos,
-                        _ => panic!(),
-                    }
+                    return last_view.to_owned().into();
                 }
                 'S' => {
-                    if let PlayType::New(info) = play_type {
+                    if let PlayType::New(info, _) = play_type {
                         if let Some(result) = subscribe(&mut view, info, config) {
                             return result;
                         }

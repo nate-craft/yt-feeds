@@ -5,11 +5,12 @@ use crate::yt::{Channel, ChannelIndex, VideoIndex, VideoInfo};
 pub type LastView = Rc<ViewPage>;
 pub type LastIndex = usize;
 pub type VideoCount = usize;
+pub type LastSearch = (Vec<VideoInfo>, String);
 
 #[derive(Clone)]
 pub enum PlayType {
     Existing(VideoIndex),
-    New(VideoInfo),
+    New(VideoInfo, Option<LastSearch>),
 }
 
 #[derive(Clone)]
@@ -37,6 +38,7 @@ pub enum Message {
     MoreVideos(ChannelIndex, ViewPage, VideoCount, LastIndex),
     Refresh(ViewPage),
     SearchChannels,
+    SearchVideosClean,
     SearchVideos,
     Quit,
     Home,

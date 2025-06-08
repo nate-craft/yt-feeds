@@ -54,7 +54,7 @@ pub fn show(channels: &Channels) -> Message {
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 's' => return Message::SearchChannels,
-                'v' => return Message::SearchVideos,
+                'v' => return Message::SearchVideosClean,
                 'a' => return Message::MixedFeed(Some(page.current_index)),
                 'r' => return Message::Refresh(ViewPage::Home),
                 'n' => {
