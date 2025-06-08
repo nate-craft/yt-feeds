@@ -5,6 +5,7 @@ use crate::{
     loading::run_while_loading,
     page::Page,
     search::fetch_videos,
+    utilities::time_since_formatted,
     view::{Message, PlayType},
 };
 
@@ -59,10 +60,11 @@ pub fn show(config: &Config) -> Message {
             .map(|(i, video)| (i, video))
             .for_each(|(i, video)| {
                 view.add_line(format!(
-                    "{}. {}\n - {}\n",
+                    "{}. {}\n   {} • {}\n",
                     i.to_string().green(),
-                    video.title.as_str().yellow(),
-                    video.channel.name.as_str().green()
+                    video.title.as_str().dark_yellow(),
+                    video.channel.name,
+                    time_since_formatted(video.upload),
                 ));
             });
 

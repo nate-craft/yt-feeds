@@ -29,6 +29,7 @@ pub struct VideoInfo {
     pub id: String,
     pub title: String,
     pub channel: ChannelInfo,
+    pub upload: DateTime<Local>,
 }
 
 #[derive(Debug)]

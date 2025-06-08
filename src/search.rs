@@ -1,5 +1,6 @@
 use std::process::Command;
 
+use chrono::{DateTime, Local};
 use itertools::Itertools;
 use serde_json::Value;
 
@@ -20,6 +21,7 @@ pub struct VideoInfoAccumulator {
     video_name: Option<String>,
     channel_id: Option<String>,
     channel_name: Option<String>,
+    upload: Option<DateTime<Local>>,
     available: bool,
     is_short: bool,
 }
@@ -61,6 +63,12 @@ impl VideoInfoAccumulator {
             self.available = value.is_null();
         } else if key.eq("url") {
             self.is_short = value.as_str().unwrap().contains("/shorts/")
+        } else if key.eq("timestamp") {
+            self.upload = Some(
+                DateTime::from_timestamp(value.as_i64().unwrap_or(0), 0)
+                    .unwrap()
+                    .with_timezone(&Local),
+            );
         }
         self
     }
@@ -75,6 +83,7 @@ impl TryFrom<VideoInfoAccumulator> for VideoInfo {
         Ok(VideoInfo {
             id: value.video_id.ok_or(Error::VideoParsing)?,
             title: value.video_name.ok_or(Error::VideoParsing)?,
+            upload: value.upload.ok_or(Error::VideoParsing)?,
             channel: ChannelInfo {
                 id: value.channel_id.ok_or(Error::VideoParsing)?,
                 name: value.channel_name.ok_or(Error::VideoParsing)?,
@@ -116,6 +125,8 @@ pub fn fetch_videos<'a>(query: &str, queries: usize) -> Vec<VideoInfo> {
     let json_bytes = Command::new("yt-dlp")
         .arg("--flat-playlist")
         .arg("--dump-json")
+        .arg("--extractor-args")
+        .arg("youtubetab:approximate_date")
         .arg(format!("ytsearch{}:{}", queries, query))
         .output()
         .expect("Could not find command yt-dlp")
