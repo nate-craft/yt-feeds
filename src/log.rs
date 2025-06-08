@@ -26,7 +26,7 @@ pub fn err(message: impl ToString) {
         .and_then(|mut file| {
             let formatted = format!(
                 "[{}]: {}\n",
-                Local::now().format("%d/%m/%Y-%H/%M"),
+                Local::now().format("%d/%m/%Y-%H:%M"),
                 message.to_string()
             );
             file.write_all(formatted.as_bytes())

@@ -24,7 +24,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
 
     loop {
         match view.show() {
-            ViewInput::Esc => view.set_error("Escape is not a valid option!"),
+            ViewInput::Esc => return Message::Quit,
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Play(index),
@@ -33,7 +33,7 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
                     let results = run_while_loading(
                         || fetch_video_description(video),
                         move || {
-                            println!("{}\n", title_moved.as_str().bold().cyan());
+                            println!("\n{}\n", title_moved.as_str().bold().cyan());
                             print!("{} ", "Fetching more information".green());
                         },
                     );

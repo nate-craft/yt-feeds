@@ -24,22 +24,17 @@ fn apply_style(
     styled_text
 }
 
-pub fn format_substring(
-    str: &str,
-    query: Option<&str>,
-    bold: bool,
-    color: Option<Color>,
-) -> String {
+pub fn highlight_query(str: &str, query: Option<&str>, color: Option<Color>) -> String {
     if let Some(query) = query {
         if let Some(pos) = str.to_lowercase().find(&query.to_lowercase()) {
-            let before = apply_style(&str[..pos], color, false, bold);
+            let before = apply_style(&str[..pos], color, false, false);
             let matched = apply_style(&str[pos..pos + query.len()], Some(Color::Red), true, true);
-            let after = apply_style(&str[pos + query.len()..], color, false, bold);
+            let after = apply_style(&str[pos + query.len()..], color, false, false);
 
             return format!("{}{}{}", before, matched, after);
         }
     }
-    return apply_style(str, color, false, bold).to_string();
+    return apply_style(str, color, false, false).to_string();
 }
 
 pub fn time_formatted_short(time_second: Option<i32>) -> String {

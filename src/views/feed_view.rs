@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crossterm::style::{Color, Stylize};
 use itertools::Itertools;
 
@@ -12,24 +14,102 @@ use crate::{
 
 use super::{View, ViewInput};
 
+#[derive(Clone)]
+enum VideoEntry<'a> {
+    Mixed(usize, usize, &'a String, &'a Video),
+    Channel(usize, &'a Video),
+}
+
+impl<'a> VideoEntry<'a> {
+    fn get_video(&'a self) -> &'a Video {
+        match self {
+            VideoEntry::Mixed(_, _, _, video) => *video,
+            VideoEntry::Channel(_, video) => *video,
+        }
+    }
+
+    fn get_channel(&'a self) -> Option<&'a str> {
+        match self {
+            VideoEntry::Mixed(_, _, channel, _) => Some(channel),
+            VideoEntry::Channel(_, _) => None,
+        }
+    }
+
+    fn get_title_formatted(&'a self, query: Option<&str>) -> String {
+        let video = self.get_video();
+        if video.watched {
+            utilities::highlight_query(&video.title, query, Some(Color::Yellow))
+        } else {
+            utilities::highlight_query(&video.title, query, Some(Color::DarkYellow))
+        }
+    }
+
+    fn cmp(&'a self, other: &'a VideoEntry) -> Ordering {
+        other.get_video().upload.cmp(&self.get_video().upload)
+    }
+}
+
 pub fn show_channel(
     channel_index: ChannelIndex,
     channels: &Channels,
     last_index: Option<usize>,
 ) -> Message {
-    let channel = channels.channel(channel_index).unwrap();
-    let videos: Vec<(usize, &Video)> = channel.videos.iter().enumerate().collect();
+    let videos = channels
+        .channel(channel_index)
+        .unwrap()
+        .videos
+        .iter()
+        .enumerate()
+        .map(|(i, video)| VideoEntry::Channel(i, video))
+        .collect();
 
-    let mut finder = Finder::new(videos.len(), 3);
+    show_feed(&videos, channels, last_index, Some(channel_index))
+}
+
+pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
+    let videos: Vec<VideoEntry> = channels
+        .iter()
+        .enumerate()
+        .flat_map(|(i, channel)| -> Vec<VideoEntry> {
+            channel
+                .videos
+                .iter()
+                .enumerate()
+                .map(|(j, video)| VideoEntry::Mixed(i, j, &channel.name, video))
+                .collect()
+        })
+        .sorted_by(|a, b| a.cmp(b))
+        .collect();
+
+    show_feed(&videos, channels, last_index, None)
+}
+
+fn show_feed(
+    videos: &Vec<VideoEntry>,
+    channels: &Channels,
+    last_index: Option<usize>,
+    channel_index: Option<ChannelIndex>,
+) -> Message {
     let mut page_normal = Page::new(videos.len(), 3);
-
-    let mut view = View::new(
-        format!("{}'s Feed", &channel.name),
-        "(p)revious, (n)ext, (m)ore, (f)ind, (r)efresh, (u)nsubscribe, (b)ack, (q)uit".to_owned(),
-        "▶".to_owned(),
-    );
+    let mut finder = Finder::new(videos.len(), 3);
 
     page_normal.current_index = last_index.unwrap_or(page_normal.current_index);
+    let channel = channel_index.map(|index| channels.channel(index).unwrap());
+
+    let mut view = if let Some(channel) = channel {
+        View::new(
+            format!("{}'s Feed", &channel.name),
+            "(p)revious, (n)ext, (m)ore, (f)ind, (r)efresh, (u)nsubscribe, (b)ack, (q)uit"
+                .to_owned(),
+            "▶".to_owned(),
+        )
+    } else {
+        View::new(
+            "Subscription Feed".to_owned(),
+            "(p)revious, (n)ext, (f)ind, (r)efresh, (b)ack, (q)uit".to_owned(),
+            "▶".to_owned(),
+        )
+    };
 
     clear_screen();
 
@@ -37,200 +117,61 @@ pub fn show_channel(
         view.clear_content();
         view.update_page(Some(&finder.page_or(&page_normal)));
 
-        finder
+        let iter = finder
             .page_or(&page_normal)
             .current_page(&finder.videos_or(&videos))
             .iter()
             .enumerate()
-            .map(|(i, video)| (i, video))
-            .for_each(|(i, (_, video))| {
-                let title = if video.watched {
-                    utilities::format_substring(
-                        &video.title,
-                        finder.query(),
-                        false,
-                        Some(Color::Yellow),
-                    )
-                } else {
-                    utilities::format_substring(
-                        &video.title,
-                        finder.query(),
-                        false,
-                        Some(Color::DarkYellow),
-                    )
-                };
+            .map(|(i, video)| (i, video));
 
-                if video.watched {
-                    view.add_line(format!(
-                        "{}. {}\n   {} • {}\n",
-                        i.to_string().green(),
-                        title,
-                        time_since_formatted(video.upload),
-                        time_formatted_short(video.progress_seconds)
-                    ));
-                } else {
-                    view.add_line(format!(
-                        "{}. {}\n   {} • {}\n",
-                        i.to_string().green(),
-                        title,
-                        time_since_formatted(video.upload),
-                        time_formatted_short(video.progress_seconds)
-                    ));
-                }
-            });
+        iter.for_each(|(i, entry)| {
+            let video = entry.get_video();
+            let line = if let Some(channel) = entry.get_channel() {
+                format!(
+                    "{}. {}\n   {} • {} • {}\n",
+                    i.to_string().green(),
+                    entry.get_title_formatted(finder.query()),
+                    channel,
+                    time_since_formatted(video.upload),
+                    time_formatted_short(video.progress_seconds)
+                )
+            } else {
+                format!(
+                    "{}. {}\n   {} • {}\n",
+                    i.to_string().green(),
+                    entry.get_title_formatted(finder.query()),
+                    time_since_formatted(video.upload),
+                    time_formatted_short(video.progress_seconds)
+                )
+            };
+            view.add_line(line);
+        });
 
         let page = finder.page_or_mut(&mut page_normal);
 
         match view.show() {
-            ViewInput::Esc => {
-                finder.reset(&mut view);
-            }
-            ViewInput::Char(char) => match char {
-                'q' => return Message::Quit,
-                'b' => return Message::Home,
-                'u' => return Message::Unsubscribe(channel_index),
-                'r' => {
-                    return Message::Refresh(ViewPage::ChannelFeed(
-                        channel_index,
-                        Some(page.current_index),
-                    ))
-                }
-                'm' => {
-                    return Message::MoreVideos(
-                        channel_index,
-                        ViewPage::ChannelFeed(channel_index, Some(page.current_index)),
-                        page.last_index(),
-                        page.current_index,
-                    )
-                }
-                'n' => {
-                    page.next_page();
-                    view.clear_error();
-                }
-                'p' => {
-                    page.prev_page();
-                    view.clear_error();
-                }
-                'f' => {
-                    view.clear_error();
-                    let Some(input) = view.show_with_input() else {
-                        finder.reset(&mut view);
-                        continue;
-                    };
-
-                    let filtered = videos
-                        .clone()
-                        .into_iter()
-                        .filter(|video| {
-                            video.1.title.to_lowercase().contains(&input.to_lowercase())
-                        })
-                        .collect_vec();
-
-                    finder.update(&mut view, filtered, &input.to_lowercase());
-                }
-                input => {
-                    view.set_error(&format!("{} is not a valid option!", input));
-                }
-            },
-            ViewInput::Num(num) => {
-                let item = finder
-                    .page_or(&page_normal)
-                    .item_at_index(&finder.videos_or(&videos), num);
-
-                if let Some((video_index, _)) = item {
-                    return Message::Play(VideoIndex {
-                        channel_index: *channel_index,
-                        video_index: *video_index,
-                    });
-                }
-            }
-        }
-    }
-}
-
-pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
-    let videos: Vec<(usize, usize, &String, &Video)> = channels
-        .iter()
-        .enumerate()
-        .flat_map(|(i, channel)| -> Vec<(usize, usize, &String, &Video)> {
-            channel
-                .videos
-                .iter()
-                .enumerate()
-                .map(|(j, video)| (i, j, &channel.name, video))
-                .collect()
-        })
-        .sorted_by(|a, b| b.3.upload.cmp(&a.3.upload))
-        .collect();
-
-    let mut page_normal = Page::new(videos.len(), 3);
-    let mut finder = Finder::new(videos.len(), 3);
-
-    page_normal.current_index = last_index.unwrap_or(page_normal.current_index);
-
-    let mut view = View::new(
-        "Subscription Feed".to_owned(),
-        "(p)revious, (n)ext, (f)ind, (r)efresh, (b)ack, (q)uit".to_owned(),
-        "▶".to_owned(),
-    );
-
-    loop {
-        view.clear_content();
-        view.update_page(Some(&finder.page_or(&page_normal)));
-
-        finder
-            .page_or(&page_normal)
-            .current_page(&finder.videos_or(&videos))
-            .iter()
-            .enumerate()
-            .map(|(i, video)| (i, video))
-            .for_each(|(i, (_, _, channel, video))| {
-                let title = if video.watched {
-                    utilities::format_substring(
-                        &video.title,
-                        finder.query(),
-                        false,
-                        Some(Color::Yellow),
-                    )
-                } else {
-                    utilities::format_substring(
-                        &video.title,
-                        finder.query(),
-                        false,
-                        Some(Color::DarkYellow),
-                    )
-                };
-
-                if video.watched {
-                    view.add_line(format!(
-                        "{}. {}\n   {} • {} • {}\n",
-                        i.to_string().green(),
-                        title,
-                        channel,
-                        time_since_formatted(video.upload),
-                        time_formatted_short(video.progress_seconds)
-                    ));
-                } else {
-                    view.add_line(format!(
-                        "{}. {}\n   {} • {} • {}\n",
-                        i.to_string().green(),
-                        title,
-                        channel,
-                        time_since_formatted(video.upload),
-                        time_formatted_short(video.progress_seconds)
-                    ));
-                }
-            });
-
-        match view.show() {
-            ViewInput::Esc => {
-                finder.reset(&mut view);
-            }
+            ViewInput::Esc => finder.reset(&mut view),
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Home,
                 'r' => {
-                    return Message::Refresh(ViewPage::MixedFeed(Some(page_normal.current_index)))
+                    if let Some(index) = channel_index {
+                        return Message::Refresh(ViewPage::ChannelFeed(
+                            index,
+                            Some(page_normal.current_index),
+                        ));
+                    } else {
+                        return Message::Refresh(ViewPage::MixedFeed(Some(
+                            page_normal.current_index,
+                        )));
+                    }
+                }
+                'u' => {
+                    if let Some(index) = channel_index {
+                        return Message::Unsubscribe(index);
+                    } else {
+                        view.set_error("u is not a valid option!");
+                    }
                 }
                 'n' => {
                     finder.page_or_mut(&mut page_normal).next_page();
@@ -240,6 +181,18 @@ pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
                     finder.page_or_mut(&mut page_normal).prev_page();
                     view.clear_error();
                 }
+                'm' => {
+                    if let Some(channel_index) = channel_index {
+                        return Message::MoreVideos(
+                            channel_index,
+                            ViewPage::ChannelFeed(channel_index, Some(page.current_index)),
+                            page.last_index(),
+                            page.current_index,
+                        );
+                    } else {
+                        view.set_error("m is not a valid option!");
+                    }
+                }
                 'f' => {
                     view.clear_error();
                     let Some(input) = view.show_with_input() else {
@@ -248,11 +201,15 @@ pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
                     };
 
                     let filtered = videos
-                        .clone()
                         .into_iter()
                         .filter(|video| {
-                            video.3.title.to_lowercase().contains(&input.to_lowercase())
+                            video
+                                .get_video()
+                                .title
+                                .to_lowercase()
+                                .contains(&input.to_lowercase())
                         })
+                        .cloned()
                         .collect_vec();
 
                     finder.update(&mut view, filtered, &input.to_lowercase());
@@ -266,9 +223,14 @@ pub fn show_mixed(channels: &Channels, last_index: Option<usize>) -> Message {
                     .page_or(&page_normal)
                     .item_at_index(&finder.videos_or(&videos), num);
 
-                if let Some((channel_index, video_index, _, _)) = item {
+                if let Some(VideoEntry::Mixed(channel_index, video_index, _, _)) = item {
                     return Message::Play(VideoIndex {
                         channel_index: *channel_index,
+                        video_index: *video_index,
+                    });
+                } else if let Some(VideoEntry::Channel(video_index, _)) = item {
+                    return Message::Play(VideoIndex {
+                        channel_index: *channel_index.unwrap(),
                         video_index: *video_index,
                     });
                 }
