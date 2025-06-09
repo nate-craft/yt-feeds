@@ -16,6 +16,7 @@ pub mod information_view;
 pub mod player_view;
 pub mod search_channel_view;
 pub mod search_video_view;
+pub mod watch_later_view;
 
 pub enum ViewInput {
     Char(char),

@@ -19,8 +19,8 @@ use yt::{Channel, Channels};
 
 use crate::loading::run_while_loading;
 use crate::view::{LastSearch, PlayType};
-use crate::views::search_video_view;
-use crate::yt::fetch_more_videos;
+use crate::views::{search_video_view, watch_later_view};
+use crate::yt::{fetch_more_videos, VideoWatchLater};
 
 mod cache;
 mod config;
@@ -40,6 +40,7 @@ pub struct AppState {
     view: ViewPage,
     root_dir: Option<PathBuf>,
     last_search: Option<LastSearch>,
+    watch_later: Vec<VideoWatchLater>,
     tx: mpsc::Sender<Channel>,
     rx: mpsc::Receiver<Channel>,
 }
@@ -55,6 +56,7 @@ impl AppState {
                 view: ViewPage::Home,
                 root_dir: cache::data_directory().ok(),
                 last_search: None,
+                watch_later: cache::fetch_watch_later_videos(),
                 tx: tx,
                 rx: rx,
             }
@@ -63,6 +65,7 @@ impl AppState {
                 channels: Channels::default(),
                 view: ViewPage::SearchChannels,
                 root_dir: cache::data_directory().ok(),
+                watch_later: cache::fetch_watch_later_videos(),
                 last_search: None,
                 tx: tx,
                 rx: rx,
@@ -122,14 +125,19 @@ fn main() {
             ViewPage::Home => home_view::show(&state.channels),
             ViewPage::SearchChannels => search_channel_view::show(&state.channels, &config),
             ViewPage::SearchVideos => search_video_view::show(&config, state.last_search.as_ref()),
+            ViewPage::WatchLater => watch_later_view::show(&state.watch_later),
             ViewPage::Refreshing(ref last_view) => last_view.as_ref().clone().into(),
             ViewPage::MixedFeed(last_index) => feed_view::show_mixed(&state.channels, last_index),
             ViewPage::ChannelFeed(channel_index, last_index) => {
                 feed_view::show_channel(channel_index, &state.channels, last_index)
             }
-            ViewPage::Play(ref play_type, ref last_view) => {
-                player_view::show(&state.channels, play_type, &last_view, &config)
-            }
+            ViewPage::Play(ref play_type, ref last_view) => player_view::show(
+                &state.channels,
+                &state.watch_later,
+                play_type,
+                &last_view,
+                &config,
+            ),
             ViewPage::Information(video_index, ref last_view) => {
                 information_view::show(&state.channels, video_index, last_view.clone())
             }
@@ -149,11 +157,38 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
         Message::ChannelFeed(channel_index, last_index) => {
             state.view = ViewPage::ChannelFeed(channel_index, last_index)
         }
+        Message::WatchLater => state.view = ViewPage::WatchLater,
         Message::SearchChannels => state.view = ViewPage::SearchChannels,
         Message::SearchVideos => state.view = ViewPage::SearchVideos,
         Message::SearchVideosClean => {
             state.view = ViewPage::SearchVideos;
             state.last_search = None;
+        }
+        Message::WatchLaterRemove(index) => {
+            state.view = ViewPage::WatchLater;
+            state.watch_later.remove(index);
+
+            if let Some(root) = &state.root_dir {
+                if let Err(err) = cache::cache_watch_later(&root, &state.watch_later) {
+                    log::err(format!(
+                        "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
+                        err
+                    ));
+                }
+            }
+        }
+        Message::WatchLaterAdd(video_info, last_view) => {
+            state.view = (*last_view).clone();
+            state.watch_later.push(video_info);
+
+            if let Some(root) = &state.root_dir {
+                if let Err(err) = cache::cache_watch_later(&root, &state.watch_later) {
+                    log::err(format!(
+                        "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
+                        err
+                    ));
+                }
+            }
         }
         Message::Play(play_type) => {
             if let PlayType::New(_, cached_search) = &play_type {
@@ -187,9 +222,9 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
                     log::err(format!(
-                                        "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                                        err
-                                ));
+                            "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
+                            err
+                    ));
                 }
             }
         }

@@ -1,16 +1,18 @@
 use std::rc::Rc;
 
-use crate::yt::{Channel, ChannelIndex, VideoIndex, VideoInfo};
+use crate::yt::{Channel, ChannelIndex, VideoIndex, VideoInfo, VideoWatchLater};
 
 pub type LastView = Rc<ViewPage>;
 pub type LastIndex = usize;
 pub type VideoCount = usize;
+pub type WatchLaterIndex = usize;
 pub type LastSearch = Rc<(Vec<VideoInfo>, String)>;
 
 #[derive(Clone)]
 pub enum PlayType {
     Existing(VideoIndex),
     New(VideoInfo, Option<LastSearch>),
+    WatchLater(WatchLaterIndex),
 }
 
 #[derive(Clone)]
@@ -23,6 +25,7 @@ pub enum ViewPage {
     Refreshing(LastView),
     Information(VideoIndex, LastView),
     SearchVideos,
+    WatchLater,
 }
 
 #[derive(Clone)]
@@ -37,6 +40,9 @@ pub enum Message {
     MoreInformation(VideoIndex, LastView, String),
     MoreVideos(ChannelIndex, ViewPage, VideoCount, LastIndex),
     Refresh(ViewPage),
+    WatchLater,
+    WatchLaterRemove(WatchLaterIndex),
+    WatchLaterAdd(VideoWatchLater, LastView),
     SearchChannels,
     SearchVideosClean,
     SearchVideos,
@@ -68,6 +74,7 @@ impl From<ViewPage> for Message {
             ViewPage::SearchVideos => Message::SearchVideos,
             ViewPage::Play(video_index, _) => Message::Play(video_index),
             ViewPage::Refreshing(view_page) => Message::Refresh(view_page.as_ref().clone()),
+            ViewPage::WatchLater => Message::WatchLater,
             ViewPage::Information(video_index, view_page) => {
                 Message::Information(video_index, view_page)
             }

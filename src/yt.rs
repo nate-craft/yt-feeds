@@ -18,7 +18,7 @@ pub struct Channel {
     pub videos: Vec<Video>,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct ChannelInfo {
     pub id: String,
     pub name: String,
@@ -30,6 +30,12 @@ pub struct VideoInfo {
     pub title: String,
     pub channel: ChannelInfo,
     pub upload: DateTime<Local>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
+pub struct VideoWatchLater {
+    pub video: Video,
+    pub channel: ChannelInfo,
 }
 
 #[derive(Debug)]

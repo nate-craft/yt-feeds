@@ -1,7 +1,7 @@
 use crate::{
     log,
     view::Error,
-    yt::{Channel, ChannelInfo, Video},
+    yt::{Channel, ChannelInfo, Video, VideoWatchLater},
     Channels,
 };
 
@@ -12,6 +12,18 @@ use std::{
     io::{BufReader, BufWriter, Read},
     path::{Path, PathBuf},
 };
+
+#[derive(Debug)]
+pub struct WatchProgress {
+    pub id: String,
+    pub progress_seconds: i32,
+}
+
+#[derive(Default)]
+struct WatchProgressAccumulator {
+    id: Option<String>,
+    progress: Option<i32>,
+}
 
 pub fn load_channel(
     value: &ChannelInfo,
@@ -79,6 +91,33 @@ pub fn fetch_cached_channels() -> Option<Vec<ChannelInfo>> {
     }
 }
 
+pub fn fetch_watch_later_videos() -> Vec<VideoWatchLater> {
+    let Ok(root) = data_directory() else {
+        log::err("Could not retrieve local data directory. Watch later cannot be enabled!");
+        return Vec::new();
+    };
+
+    let path = root.join("watch_later.json");
+
+    match File::open(&path) {
+        Ok(file) => {
+            let json: Result<Vec<VideoWatchLater>, _> =
+                serde_json::from_reader(BufReader::new(file));
+            if let Ok(videos) = json {
+                if !videos.is_empty() {
+                    return videos;
+                }
+            } else {
+                log::err(format!("Could not load json for {:?}\n", path));
+            }
+        }
+        Err(err) => {
+            log::err(format!("Could not open {:?}\n{}", path, err));
+        }
+    }
+    return Vec::new();
+}
+
 pub fn cache_videos(root: &Path, id: &str, videos: &Vec<Video>) -> Result<(), Error> {
     let root = root.join("channels/");
     if !Path::exists(&root) {
@@ -88,6 +127,15 @@ pub fn cache_videos(root: &Path, id: &str, videos: &Vec<Video>) -> Result<(), Er
         serde_json::to_writer_pretty(BufWriter::new(file), videos).map_err(|_| Error::JsonError)
     } else {
         Err(Error::JsonError)
+    }
+}
+
+pub fn cache_watch_later(root: &Path, watch_later: &[VideoWatchLater]) -> Result<(), Error> {
+    if let Ok(file) = File::create(&root.join("watch_later.json")) {
+        serde_json::to_writer_pretty(BufWriter::new(file), &watch_later)
+            .map_err(|_| Error::JsonError)
+    } else {
+        Err(Error::FileBadAccess)
     }
 }
 
@@ -115,18 +163,6 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
     } else {
         Err(Error::FileBadAccess)
     }
-}
-
-#[derive(Debug)]
-pub struct WatchProgress {
-    pub id: String,
-    pub progress_seconds: i32,
-}
-
-#[derive(Default)]
-struct WatchProgressAccumulator {
-    id: Option<String>,
-    progress: Option<i32>,
 }
 
 impl WatchProgressAccumulator {

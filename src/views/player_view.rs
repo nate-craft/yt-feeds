@@ -11,13 +11,14 @@ use crate::{
     loading::{cmd_while_loading, run_while_loading},
     log,
     view::{Error, Message, PlayType, ViewPage},
-    yt::{fetch_channel_feed, Channel, Channels, VideoInfo},
+    yt::{fetch_channel_feed, Channel, Channels, Video, VideoInfo, VideoWatchLater},
 };
 
 use super::{View, ViewInput};
 
 pub fn show(
     channels: &Channels,
+    watch_later: &[VideoWatchLater],
     play_type: &PlayType,
     last_view: &ViewPage,
     config: &Config,
@@ -37,11 +38,21 @@ pub fn show(
         PlayType::New(video_info, _) => {
             let view = View::new(
                 format!("\"{}\" - {}", video_info.title, video_info.channel.name),
-                "(p)lay, (d)etach, (s)ave, (P)lay + save, (S)ubscribe, (b)ack, (q)uit".to_owned(),
+                "(p)lay, (d)etach, (s)ave, (P)lay + save, (S)ubscribe, (w)atch later, (b)ack, (q)uit".to_owned(),
                 "▶".to_owned(),
             );
 
             (video_info.url(), video_info.title.clone(), view)
+        }
+        PlayType::WatchLater(index) => {
+            let later = watch_later.get(*index).unwrap();
+            let view = View::new(
+                format!("\"{}\" - {}", later.video.title, later.channel.name),
+                "(p)lay, (d)etach, (s)ave, (P)lay + save, (r)emove, (b)ack, (q)uit".to_owned(),
+                "▶".to_owned(),
+            );
+
+            (later.video.url(), later.video.title.clone(), view)
         }
     };
 
@@ -113,6 +124,30 @@ pub fn show(
                         }
                     } else {
                         view.set_error("S is not a valid option!");
+                    }
+                }
+                'w' => {
+                    if let PlayType::New(info, _) = play_type {
+                        //TODO: Add description to WatchInfo
+                        let later = VideoWatchLater {
+                            video: Video::new(
+                                info.title.clone(),
+                                info.id.clone(),
+                                "N/A",
+                                info.upload,
+                            ),
+                            channel: info.channel.clone(),
+                        };
+                        return Message::WatchLaterAdd(later, Rc::new(last_view.to_owned()));
+                    } else {
+                        view.set_error("r is not a valid option!");
+                    }
+                }
+                'r' => {
+                    if let PlayType::WatchLater(index) = play_type {
+                        return Message::WatchLaterRemove(*index);
+                    } else {
+                        view.set_error("r is not a valid option!");
                     }
                 }
                 input => {

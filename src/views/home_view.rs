@@ -30,7 +30,8 @@ pub fn show(channels: &Channels) -> Message {
 
     let mut view = View::new(
         format!("{} Home", user),
-        "(p)revious, (n)ext, (a)ll, (s)ubscribe, (v)ideo search, (r)efresh, (q)uit".to_owned(),
+        "(p)revious, (n)ext, (a)ll, (s)ubscribe, (v)ideo search, (r)efresh, (w)atch later, (q)uit"
+            .to_owned(),
         "▶".to_owned(),
     );
 
@@ -55,6 +56,7 @@ pub fn show(channels: &Channels) -> Message {
                 'q' => return Message::Quit,
                 's' => return Message::SearchChannels,
                 'v' => return Message::SearchVideosClean,
+                'w' => return Message::WatchLater,
                 'a' => return Message::MixedFeed(Some(page.current_index)),
                 'r' => return Message::Refresh(ViewPage::Home),
                 'n' => {

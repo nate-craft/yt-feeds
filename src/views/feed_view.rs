@@ -242,6 +242,8 @@ fn show_feed(
                         channel_index: *channel_index.unwrap(),
                         video_index: *video_index,
                     }));
+                } else {
+                    view.set_error(&format!("{} is not a valid option!", num));
                 }
             }
         }
