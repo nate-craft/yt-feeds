@@ -20,14 +20,12 @@ pub fn show(config: &Config, cached_search: Option<&LastSearch>) -> Message {
         "Search:".to_owned(),
     );
 
-    let mut input;
-    let results;
-
     // Wrap new data || old data in either a clone of existing Rc, or new Rc
     let search_shared_cached = {
         if let Some(cached) = &cached_search {
             cached
         } else {
+            let mut input;
             loop {
                 input = match view.show_with_input() {
                     Some(string) => string,
@@ -42,7 +40,7 @@ pub fn show(config: &Config, cached_search: Option<&LastSearch>) -> Message {
 
             let input_clone = input.clone();
 
-            results = run_while_loading(
+            let results = run_while_loading(
                 || fetch_videos(&input, config.videos_per_search),
                 move || {
                     println!("{}", "\nVideo Search\n".to_string().cyan().bold());
