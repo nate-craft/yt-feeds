@@ -68,10 +68,9 @@ pub fn show(channels: &Channels, config: &Config) -> Message {
             });
 
         match view.show() {
-            ViewInput::Esc => return Message::Quit,
+            ViewInput::Esc | ViewInput::Char('b') => return Message::SearchChannels,
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
-                'b' => return Message::SearchChannels,
                 'n' => {
                     page.next_page();
                     view.clear_error();

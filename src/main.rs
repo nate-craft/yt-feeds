@@ -121,7 +121,7 @@ fn main() {
         let message: Message = match state.view {
             ViewPage::Home => home_view::show(&state.channels),
             ViewPage::SearchChannels => search_channel_view::show(&state.channels, &config),
-            ViewPage::SearchVideos => search_video_view::show(&config, &state.last_search),
+            ViewPage::SearchVideos => search_video_view::show(&config, state.last_search.as_ref()),
             ViewPage::Refreshing(ref last_view) => last_view.as_ref().clone().into(),
             ViewPage::MixedFeed(last_index) => feed_view::show_mixed(&state.channels, last_index),
             ViewPage::ChannelFeed(channel_index, last_index) => {
@@ -150,9 +150,7 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             state.view = ViewPage::ChannelFeed(channel_index, last_index)
         }
         Message::SearchChannels => state.view = ViewPage::SearchChannels,
-        Message::SearchVideos => {
-            state.view = ViewPage::SearchVideos;
-        }
+        Message::SearchVideos => state.view = ViewPage::SearchVideos,
         Message::SearchVideosClean => {
             state.view = ViewPage::SearchVideos;
             state.last_search = None;

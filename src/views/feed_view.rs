@@ -150,7 +150,16 @@ fn show_feed(
         let page = finder.page_or_mut(&mut page_normal);
 
         match view.show() {
-            ViewInput::Esc => finder.reset(&mut view),
+            ViewInput::Esc => {
+                let should_reset = finder
+                    .query()
+                    .map(|query| !query.is_empty())
+                    .unwrap_or(false);
+
+                if should_reset {
+                    finder.reset(&mut view)
+                }
+            }
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
                 'b' => return Message::Home,

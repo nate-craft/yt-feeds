@@ -5,7 +5,7 @@ use crate::yt::{Channel, ChannelIndex, VideoIndex, VideoInfo};
 pub type LastView = Rc<ViewPage>;
 pub type LastIndex = usize;
 pub type VideoCount = usize;
-pub type LastSearch = (Vec<VideoInfo>, String);
+pub type LastSearch = Rc<(Vec<VideoInfo>, String)>;
 
 #[derive(Clone)]
 pub enum PlayType {
@@ -95,7 +95,7 @@ impl ViewPage {
         match self {
             ViewPage::Play(_, view_page)
             | ViewPage::Refreshing(view_page)
-            | ViewPage::Information(_, view_page) => view_page,
+            | ViewPage::Information(_, view_page) => view_page.or_inner(),
             _ => self,
         }
     }

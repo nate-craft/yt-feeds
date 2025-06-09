@@ -24,10 +24,11 @@ pub fn show(channels: &Channels, index: VideoIndex, last_view: LastView) -> Mess
 
     loop {
         match view.show() {
-            ViewInput::Esc => return Message::Quit,
+            ViewInput::Esc | ViewInput::Char('b') => {
+                return Message::Play(PlayType::Existing(index))
+            }
             ViewInput::Char(char) => match char {
                 'q' => return Message::Quit,
-                'b' => return Message::Play(PlayType::Existing(index)),
                 'm' => {
                     let title_moved = title.clone();
                     let results = run_while_loading(
