@@ -21,6 +21,8 @@ YT-Feeds is a cross-platform simple, fast, and distraction free CLI application 
 
 - 🗂️ Groups subscriptions into a collective "feed" organized by date
 
+- ⏳ Categorize and view videos in the 'watch later' menu
+
 - ＞ Never requires leaving the terminal or using your mouse  
 
 ## Installing
