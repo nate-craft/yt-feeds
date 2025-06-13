@@ -200,7 +200,7 @@ fn subscribe(view: &mut View, info: &VideoInfo, config: &Config) -> Option<Messa
             _ => panic!(),
         },
     }
-    return None;
+    None
 }
 
 fn play_and_download(title: &str, url: &str, config: &Config) -> Result<(), Error> {

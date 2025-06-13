@@ -57,7 +57,6 @@ pub fn show(channels: &Channels, config: &Config) -> Message {
         page.current_page(&results)
             .iter()
             .enumerate()
-            .map(|(i, channel)| (i, channel))
             .for_each(|(i, channel)| {
                 view.add_line(format!(
                     "{}. {} ({})",

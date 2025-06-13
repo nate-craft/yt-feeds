@@ -188,7 +188,7 @@ impl View {
                             return None;
                         } else {
                             input.push('c');
-                            print!("{}", 'c');
+                            print!("c");
                             io::stdout().flush().unwrap();
                         }
                     }

@@ -145,12 +145,12 @@ where
         let mut step = 0;
         let steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"];
 
-        while let Err(_) = rx.recv_timeout(Duration::from_millis(150)) {
+        while rx.recv_timeout(Duration::from_millis(150)).is_err() {
             clear_screen();
             print_fn();
             println!("  {}", steps[step]);
             step = (step + 1) % steps.len();
-            step = step + 1;
+            step += 1;
             if step > steps.len() - 1 {
                 step = 0;
             }

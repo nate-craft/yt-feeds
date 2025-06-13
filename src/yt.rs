@@ -39,6 +39,7 @@ pub struct VideoWatchLater {
 }
 
 #[derive(Debug)]
+#[derive(Default)]
 pub struct Channels(pub Vec<Channel>);
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
@@ -69,12 +70,6 @@ pub struct VideoIndex {
 
 #[derive(Clone, Copy)]
 pub struct ChannelIndex(pub usize);
-
-impl Default for Channels {
-    fn default() -> Self {
-        Channels(Vec::default())
-    }
-}
 
 impl Channels {
     pub fn new(channels_cached: &[ChannelInfo]) -> Channels {
@@ -278,14 +273,13 @@ pub fn fetch_channel_feed(
         .lines()
         .filter_map(|line| -> Option<Value> { serde_json::from_str(line).ok() })
         .filter_map(|json: Value| -> Option<Video> {
-            let option = json
+            json
                 .as_object()
                 .expect("JSON is not object")
                 .iter()
                 .fold(VideoAccumulator::default(), VideoAccumulator::accumulate)
                 .try_into()
-                .ok();
-            option
+                .ok()
         })
         .unique()
         .collect();
@@ -318,7 +312,7 @@ pub fn fetch_more_videos(config: &Config, last_index: usize, channel: &mut Chann
             err => panic!("Error: {:?}", err),
         },
     }
-    return false;
+    false
 }
 
 pub fn fetch_video_description(video: &Video) -> Result<String, Error> {
@@ -330,11 +324,11 @@ pub fn fetch_video_description(video: &Video) -> Result<String, Error> {
 
     let json_raw = String::from_utf8_lossy(&cmd.stdout);
     serde_json::from_str(&json_raw)
-        .map_err(|_| Error::JsonError)
+        .map_err(|_| Error::JsonParsing)
         .and_then(|json: Value| {
             json["description"]
                 .as_str()
-                .ok_or(Error::JsonError)
+                .ok_or(Error::JsonParsing)
                 .map(|str| str.to_owned())
         })
 }

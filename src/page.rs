@@ -50,7 +50,7 @@ impl Page {
     pub fn prev_page(&mut self) {
         self.current_index = max(
             self.current_index as i32 - self.count_per_page as i32,
-            0 as i32,
+            0_i32,
         ) as usize;
     }
 
@@ -64,7 +64,7 @@ impl Page {
 
     pub fn item_is_at_index(&self, index: usize) -> bool {
         self.count_per_page != 0
-            && index <= self.count_per_page - 1
+            && index < self.count_per_page
             && index + self.current_index <= self.count_total
     }
 }

@@ -23,8 +23,8 @@ enum VideoEntry<'a> {
 impl<'a> VideoEntry<'a> {
     fn get_video(&'a self) -> &'a Video {
         match self {
-            VideoEntry::Mixed(_, _, _, video) => *video,
-            VideoEntry::Channel(_, video) => *video,
+            VideoEntry::Mixed(_, _, _, video) => video,
+            VideoEntry::Channel(_, video) => video,
         }
     }
 
@@ -115,14 +115,13 @@ fn show_feed(
 
     loop {
         view.clear_content();
-        view.update_page(Some(&finder.page_or(&page_normal)));
+        view.update_page(Some(finder.page_or(&page_normal)));
 
         let iter = finder
             .page_or(&page_normal)
-            .current_page(&finder.videos_or(&videos))
+            .current_page(finder.videos_or(videos))
             .iter()
-            .enumerate()
-            .map(|(i, video)| (i, video));
+            .enumerate();
 
         iter.for_each(|(i, entry)| {
             let video = entry.get_video();
@@ -210,7 +209,7 @@ fn show_feed(
                     };
 
                     let filtered = videos
-                        .into_iter()
+                        .iter()
                         .filter(|video| {
                             video
                                 .get_video()
@@ -230,7 +229,7 @@ fn show_feed(
             ViewInput::Num(num) => {
                 let item = finder
                     .page_or(&page_normal)
-                    .item_at_index(&finder.videos_or(&videos), num);
+                    .item_at_index(finder.videos_or(videos), num);
 
                 if let Some(VideoEntry::Mixed(channel_index, video_index, _, _)) = item {
                     return Message::Play(PlayType::Existing(VideoIndex {

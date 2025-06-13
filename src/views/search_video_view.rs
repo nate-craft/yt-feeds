@@ -67,10 +67,9 @@ pub fn show(config: &Config, cached_search: Option<&LastSearch>) -> Message {
         view.clear_content();
         view.update_page(Some(&page));
 
-        page.current_page(&results)
+        page.current_page(results)
             .iter()
             .enumerate()
-            .map(|(i, video)| (i, video))
             .for_each(|(i, video)| {
                 view.add_line(format!(
                     "{}. {}\n   {} • {}\n",
@@ -98,7 +97,7 @@ pub fn show(config: &Config, cached_search: Option<&LastSearch>) -> Message {
                 }
             },
             ViewInput::Num(num) => {
-                let Some(video) = page.item_at_index(&results, num) else {
+                let Some(video) = page.item_at_index(results, num) else {
                     view.set_error(&format!("{} is not a valid option!", input));
                     continue;
                 };

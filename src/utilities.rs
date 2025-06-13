@@ -34,7 +34,7 @@ pub fn highlight_query(str: &str, query: Option<&str>, color: Option<Color>) -> 
             return format!("{}{}{}", before, matched, after);
         }
     }
-    return apply_style(str, color, false, false).to_string();
+    apply_style(str, color, false, false).to_string()
 }
 
 pub fn time_formatted_short(time_second: Option<i32>) -> String {

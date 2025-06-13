@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{fmt::Display, rc::Rc};
 
 use crate::yt::{Channel, ChannelIndex, VideoIndex, VideoInfo, VideoWatchLater};
 
@@ -54,11 +54,11 @@ pub enum Message {
 pub enum Error {
     FileBadAccess,
     CommandFailed(String),
-    JsonError,
+    JsonParsing,
     ChannelParsing,
     VideoParsing,
     VideoNotAvailable,
-    TomlError,
+    TomlParsing,
     HistoryParsing,
 }
 
@@ -82,18 +82,20 @@ impl From<ViewPage> for Message {
     }
 }
 
-impl ToString for Error {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
             Error::FileBadAccess => "Could not access file".to_owned(),
             Error::CommandFailed(command) => format!("Could not run command: {}", command),
-            Error::JsonError => "Could not parse JSON".to_owned(),
+            Error::JsonParsing => "Could not parse JSON".to_owned(),
             Error::ChannelParsing => "Could not parse channel information from yt-dlp".to_owned(),
             Error::VideoParsing => "Could not parse video information from yt-dlp".to_owned(),
-            Error::TomlError => "Could not load toml configuration".to_owned(),
+            Error::TomlParsing => "Could not load toml configuration".to_owned(),
             Error::HistoryParsing => "Could not parse local MPV history".to_owned(),
             Error::VideoNotAvailable => "Fetched video was not available".to_owned(),
-        }
+        };
+
+        write!(f, "{}", msg)
     }
 }
 

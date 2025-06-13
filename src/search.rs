@@ -92,7 +92,7 @@ impl TryFrom<VideoInfoAccumulator> for VideoInfo {
     }
 }
 
-pub fn fetch_channel<'a>(channel: &str, queries: usize) -> Vec<ChannelInfo> {
+pub fn fetch_channel(channel: &str, queries: usize) -> Vec<ChannelInfo> {
     let channel_json_bytes = Command::new("yt-dlp")
         .arg("--flat-playlist")
         .arg("--dump-json")
@@ -121,7 +121,7 @@ pub fn fetch_channel<'a>(channel: &str, queries: usize) -> Vec<ChannelInfo> {
         .collect()
 }
 
-pub fn fetch_videos<'a>(query: &str, queries: usize) -> Vec<VideoInfo> {
+pub fn fetch_videos(query: &str, queries: usize) -> Vec<VideoInfo> {
     let json_bytes = Command::new("yt-dlp")
         .arg("--flat-playlist")
         .arg("--dump-json")

@@ -19,7 +19,7 @@ pub fn show(channels: &Channels) -> Message {
             }
             if let Some(last) = user.chars().last() {
                 if last == 's' {
-                    user.push_str("'");
+                    user.push('\'');
                 } else {
                     user.push_str("'s");
                 }

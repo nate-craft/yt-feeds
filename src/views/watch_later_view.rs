@@ -32,14 +32,13 @@ pub fn show(watch_later: &Vec<VideoWatchLater>) -> Message {
 
     loop {
         view.clear_content();
-        view.update_page(Some(&finder.page_or(&page_normal)));
+        view.update_page(Some(finder.page_or(&page_normal)));
 
         let iter = finder
             .page_or(&page_normal)
-            .current_page(&finder.videos_or(&watch_later))
+            .current_page(finder.videos_or(watch_later))
             .iter()
-            .enumerate()
-            .map(|(i, video)| (i, video));
+            .enumerate();
 
         iter.for_each(|(i, entry)| {
             let line = format!(
@@ -85,7 +84,7 @@ pub fn show(watch_later: &Vec<VideoWatchLater>) -> Message {
                     };
 
                     let filtered = watch_later
-                        .into_iter()
+                        .iter()
                         .filter(|video| {
                             video
                                 .video

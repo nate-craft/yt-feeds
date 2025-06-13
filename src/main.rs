@@ -45,8 +45,8 @@ pub struct AppState {
     rx: mpsc::Receiver<Channel>,
 }
 
-impl AppState {
-    pub fn new() -> Self {
+impl Default for AppState {
+    fn default() -> Self {
         let channels_cached = cache::fetch_cached_channels();
         let (tx, rx) = mpsc::channel::<Channel>();
 
@@ -99,7 +99,7 @@ fn main() {
         }
     };
 
-    let mut state = AppState::new();
+    let mut state = AppState::default();
 
     // Auto update on startup
     if config.refresh_on_start {
@@ -135,7 +135,7 @@ fn main() {
                 &state.channels,
                 &state.watch_later,
                 play_type,
-                &last_view,
+                last_view,
                 &config,
             ),
             ViewPage::Information(video_index, ref last_view) => {
@@ -182,7 +182,7 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             state.watch_later.push(video_info);
 
             if let Some(root) = &state.root_dir {
-                if let Err(err) = cache::cache_watch_later(&root, &state.watch_later) {
+                if let Err(err) = cache::cache_watch_later(root, &state.watch_later) {
                     log::err(format!(
                         "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
                         err

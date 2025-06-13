@@ -45,8 +45,8 @@ impl Config {
                 ),
                 refresh_on_start: false,
             };
-            let toml = toml::to_string(&default_config).map_err(|_| Error::TomlError)?;
-            fs::write(file, toml).map_err(|_| Error::TomlError)?;
+            let toml = toml::to_string(&default_config).map_err(|_| Error::TomlParsing)?;
+            fs::write(file, toml).map_err(|_| Error::TomlParsing)?;
 
             return Ok(default_config);
         }
@@ -57,7 +57,7 @@ impl Config {
                 file.read_to_string(&mut raw)
                     .map_err(|_| Error::FileBadAccess)?;
 
-                toml::from_str(&raw).map_err(|_| Error::TomlError)
+                toml::from_str(&raw).map_err(|_| Error::TomlParsing)
             }
             Err(_) => {
                 Err(Error::FileBadAccess)

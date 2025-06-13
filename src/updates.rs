@@ -87,7 +87,7 @@ pub fn check_updates(rx: &Receiver<Channel>, channels: &mut Channels, blocking: 
                     steps[step]
                 );
 
-                step = step + 1;
+                step += 1;
                 if step > steps.len() - 1 {
                     step = 0;
                 }

@@ -56,7 +56,7 @@ pub fn load_channel(
             }
             Ok(Channel::new(value.name.clone(), value.id.clone(), videos))
         } else {
-            Err(Error::JsonError)
+            Err(Error::JsonParsing)
         }
     } else {
         Err(Error::FileBadAccess)
@@ -115,7 +115,7 @@ pub fn fetch_watch_later_videos() -> Vec<VideoWatchLater> {
             log::err(format!("Could not open {:?}\n{}", path, err));
         }
     }
-    return Vec::new();
+    Vec::new()
 }
 
 pub fn cache_videos(root: &Path, id: &str, videos: &Vec<Video>) -> Result<(), Error> {
@@ -123,17 +123,17 @@ pub fn cache_videos(root: &Path, id: &str, videos: &Vec<Video>) -> Result<(), Er
     if !Path::exists(&root) {
         fs::create_dir_all(&root).map_err(|_| Error::FileBadAccess)?;
     }
-    if let Ok(file) = File::create(&root.join(format!("{}{}", &id, ".json")).as_path()) {
-        serde_json::to_writer_pretty(BufWriter::new(file), videos).map_err(|_| Error::JsonError)
+    if let Ok(file) = File::create(root.join(format!("{}{}", &id, ".json")).as_path()) {
+        serde_json::to_writer_pretty(BufWriter::new(file), videos).map_err(|_| Error::JsonParsing)
     } else {
-        Err(Error::JsonError)
+        Err(Error::JsonParsing)
     }
 }
 
 pub fn cache_watch_later(root: &Path, watch_later: &[VideoWatchLater]) -> Result<(), Error> {
-    if let Ok(file) = File::create(&root.join("watch_later.json")) {
+    if let Ok(file) = File::create(root.join("watch_later.json")) {
         serde_json::to_writer_pretty(BufWriter::new(file), &watch_later)
-            .map_err(|_| Error::JsonError)
+            .map_err(|_| Error::JsonParsing)
     } else {
         Err(Error::FileBadAccess)
     }
@@ -144,7 +144,7 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
         return Err(Error::FileBadAccess);
     };
 
-    if let Ok(file) = File::create(&root.join("channels.json")) {
+    if let Ok(file) = File::create(root.join("channels.json")) {
         channels.iter().for_each(|channel| {
             if cache_videos(&root, &channel.id, &channel.videos).is_err() {
                 log::err(format!(
@@ -156,10 +156,10 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
 
         let channels: Vec<ChannelInfo> = channels
             .iter()
-            .map(|channel| ChannelInfo::from(channel))
+            .map(ChannelInfo::from)
             .collect();
 
-        serde_json::to_writer_pretty(BufWriter::new(file), &channels).map_err(|_| Error::JsonError)
+        serde_json::to_writer_pretty(BufWriter::new(file), &channels).map_err(|_| Error::JsonParsing)
     } else {
         Err(Error::FileBadAccess)
     }
