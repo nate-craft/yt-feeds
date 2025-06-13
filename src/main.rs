@@ -169,7 +169,7 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             state.watch_later.remove(index);
 
             if let Some(root) = &state.root_dir {
-                if let Err(err) = cache::cache_watch_later(&root, &state.watch_later) {
+                if let Err(err) = cache::cache_watch_later(root, &state.watch_later) {
                     log::err(format!(
                         "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
                         err

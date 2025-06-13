@@ -57,10 +57,10 @@ impl Config {
                 file.read_to_string(&mut raw)
                     .map_err(|_| Error::FileBadAccess)?;
 
-                return toml::from_str(&raw).map_err(|_| Error::TomlError);
+                toml::from_str(&raw).map_err(|_| Error::TomlError)
             }
             Err(_) => {
-                return Err(Error::FileBadAccess);
+                Err(Error::FileBadAccess)
             }
         }
     }
