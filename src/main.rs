@@ -57,8 +57,8 @@ impl AppState {
                 root_dir: cache::data_directory().ok(),
                 last_search: None,
                 watch_later: cache::fetch_watch_later_videos(),
-                tx: tx,
-                rx: rx,
+                tx,
+                rx,
             }
         } else {
             AppState {
@@ -67,8 +67,8 @@ impl AppState {
                 root_dir: cache::data_directory().ok(),
                 watch_later: cache::fetch_watch_later_videos(),
                 last_search: None,
-                tx: tx,
-                rx: rx,
+                tx,
+                rx,
             }
         }
     }
