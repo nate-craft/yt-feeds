@@ -12,7 +12,7 @@ use crossterm::{
     cursor,
     terminal::{self, ClearType},
 };
-use updates::{check_updates, fetch_updates, Blocking};
+use updates::{Blocking, check_updates, fetch_updates};
 use view::{Message, ViewPage};
 use views::{feed_view, home_view, information_view, player_view, search_channel_view};
 use yt::{Channel, Channels};
@@ -20,7 +20,7 @@ use yt::{Channel, Channels};
 use crate::loading::run_while_loading;
 use crate::view::{LastSearch, PlayType};
 use crate::views::{search_video_view, watch_later_view};
-use crate::yt::{fetch_more_videos, VideoWatchLater};
+use crate::yt::{VideoWatchLater, fetch_more_videos};
 
 mod cache;
 mod config;
@@ -222,8 +222,8 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             if let Some(root) = &state.root_dir {
                 if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
                     log::err(format!(
-                            "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                            err
+                        "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
+                        err
                     ));
                 }
             }

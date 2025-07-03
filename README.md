@@ -7,23 +7,23 @@ YT-Feeds is a cross-platform simple, fast, and distraction free CLI application 
 
 ## Features
 
-- 🔥 Blazingly fast - far more than any web or electron-based system
+- Fast startup and navigation 
 
-- 💻 Uses minimal resources (<1Mb with several channels cached)
+- Uses minimal resources (under 1 Mb)
 
-- 👀 Distraction and short form content free!
+- Distraction and short form content free!
 
-- 🔍 Search for your favorite channels and subscribe/unsubscribe
+- Search for your favorite channels and subscribe/unsubscribe
 
-- 📜 Automatically tracks and resumes watch history locally
+- Automatically tracks and resumes watch history locally
 
-- 🎥 Shows recent videos from subscriptions organized by date
+- Shows recent videos from subscriptions organized by date
 
-- 🗂️ Groups subscriptions into a collective "feed" organized by date
+- Groups subscriptions into a collective "feed" organized by date
 
-- ⏳ Categorize and view videos in the 'watch later' menu
+- Categorize and view videos in the 'watch later' menu
 
-- ＞ Never requires leaving the terminal or using your mouse  
+- Never requires leaving the terminal or using your mouse  
 
 ## Installing
 
