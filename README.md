@@ -1,5 +1,5 @@
 # YT-Feeds
-![](https://gist.githubusercontent.com/higgsbi/648bbda6337b503a5d703f86757e4647/raw/144cf1f5f80e9c5ac6b5efde45869d01feb2ccd9/brainmade.png)
+![](https://gist.githubusercontent.com/nate-craft/648bbda6337b503a5d703f86757e4647/raw/144cf1f5f80e9c5ac6b5efde45869d01feb2ccd9/brainmade.png)
 
 YT-Feeds is a cross-platform simple, fast, and distraction free CLI application to view videos from your favorite channels.
 
