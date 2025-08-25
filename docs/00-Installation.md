@@ -6,7 +6,7 @@ ___
 
 YT-Feeds can be installed via [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
 ```bash
-cargo install --git https://github.com/higgsbi/yt-feeds
+cargo install --git https://github.com/nate-craft/yt-feeds
 ```
 
 YT-Feeds requires mpv and yt-dlp to be installed in order to function:

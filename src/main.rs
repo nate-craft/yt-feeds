@@ -12,7 +12,7 @@ use crossterm::{
     cursor,
     terminal::{self, ClearType},
 };
-use updates::{Blocking, check_updates, fetch_updates};
+use updates::{check_updates, fetch_updates, Blocking};
 use view::{Message, ViewPage};
 use views::{feed_view, home_view, information_view, player_view, search_channel_view};
 use yt::{Channel, Channels};
@@ -20,7 +20,7 @@ use yt::{Channel, Channels};
 use crate::loading::run_while_loading;
 use crate::view::{LastSearch, PlayType};
 use crate::views::{search_video_view, watch_later_view};
-use crate::yt::{VideoWatchLater, fetch_more_videos};
+use crate::yt::{fetch_more_videos, VideoWatchLater};
 
 mod cache;
 mod config;
@@ -81,11 +81,11 @@ fn program_installed(command: &str) -> bool {
 fn main() {
     thread::spawn(|| {
         if !program_installed("mpv") {
-            log::err_and_exit("mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
+            log::err_and_exit("mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/nate-craft/yt-feeds".red());
         }
 
         if !program_installed("yt-dlp") {
-            log::err_and_exit("yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/higgsbi/yt-feeds".red());
+            log::err_and_exit("yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/nate-craft/yt-feeds".red());
         }
     });
 
