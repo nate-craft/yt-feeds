@@ -8,5 +8,6 @@ ___
  - [x] Add cached navigation for long search tasks
  - [x] Add docs directory to reduce README clutter
  - [x] Add watch later feed
+ - [ ] Switch to IPC socket for faster MPV communication (see: nate-craft/Auditorium)
  - [ ] Make errors much more descriptive
  - [ ] Add automated AUR upload
