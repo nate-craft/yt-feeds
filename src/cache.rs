@@ -6,61 +6,26 @@ use crate::{
 };
 
 use std::{
-    collections::HashMap,
-    env,
     fs::{self, File},
-    io::{BufReader, BufWriter, Read},
+    io::{BufReader, BufWriter},
     path::{Path, PathBuf},
 };
 
-#[derive(Debug)]
-pub struct WatchProgress {
-    pub id: String,
-    pub progress_seconds: i32,
-}
-
-#[derive(Default)]
-struct WatchProgressAccumulator {
-    id: Option<String>,
-    progress: Option<i32>,
-}
-
-pub fn load_channel(
-    value: &ChannelInfo,
-    history: Option<&HashMap<String, WatchProgress>>,
-) -> Result<Channel, Error> {
+pub fn load_channel(value: &ChannelInfo) -> Result<Channel, Error> {
     let Ok(root) = data_directory() else {
         log::err("Could not retrieve local data directory. Caching cannot be enabled!");
         return Err(Error::FileBadAccess);
     };
 
-    if let Ok(file) = File::open(
-        root.join("channels/")
-            .join(format!("{}{}", &value.id, ".json")),
-    ) {
-        let json_videos: Result<Vec<Video>, _> = serde_json::from_reader(BufReader::new(file));
+    let json_file = root
+        .join("channels/")
+        .join(format!("{}{}", &value.id, ".json"));
 
-        if let Ok(mut videos) = json_videos {
-            // try to apply new history
-            if let Some(history) = history {
-                videos.iter_mut().for_each(|video| {
-                    let found = history
-                        .get(&video.id)
-                        .map(|history| history.progress_seconds);
-                    video.progress_seconds = found;
-                    if let Some(progress) = found {
-                        // Never swap to false (viewer may have watched only for an instant, but that is still a watch)
-                        video.watched = video.watched || progress > 0;
-                    }
-                });
-            }
-            Ok(Channel::new(value.name.clone(), value.id.clone(), videos))
-        } else {
-            Err(Error::JsonParsing)
-        }
-    } else {
-        Err(Error::FileBadAccess)
-    }
+    let file = File::open(json_file).map_err(|_| Error::FileBadAccess)?;
+
+    serde_json::from_reader(BufReader::new(file))
+        .map(|videos| Channel::new(value.name.clone(), value.id.clone(), videos))
+        .map_err(|_| Error::JsonParsing)
 }
 
 pub fn fetch_cached_channels() -> Option<Vec<ChannelInfo>> {
@@ -71,23 +36,12 @@ pub fn fetch_cached_channels() -> Option<Vec<ChannelInfo>> {
 
     let path = root.join("channels.json");
 
-    match File::open(&path) {
-        Ok(file) => {
-            let json: Result<Vec<ChannelInfo>, _> = serde_json::from_reader(BufReader::new(file));
-            if let Ok(channels) = json {
-                if channels.is_empty() {
-                    None
-                } else {
-                    Some(channels)
-                }
-            } else {
-                None
-            }
-        }
-        Err(err) => {
-            log::err(format!("Could not open {:?}\n{}", path, err));
-            None
-        }
+    if let Ok(file) = File::open(&path) {
+        serde_json::from_reader(BufReader::new(file))
+            .ok()
+            .filter(|channels: &Vec<ChannelInfo>| !channels.is_empty())
+    } else {
+        None
     }
 }
 
@@ -99,30 +53,27 @@ pub fn fetch_watch_later_videos() -> Vec<VideoWatchLater> {
 
     let path = root.join("watch_later.json");
 
-    match File::open(&path) {
-        Ok(file) => {
-            let json: Result<Vec<VideoWatchLater>, _> =
-                serde_json::from_reader(BufReader::new(file));
-            if let Ok(videos) = json {
-                if !videos.is_empty() {
-                    return videos;
-                }
-            } else {
-                log::err(format!("Could not load json for {:?}\n", path));
-            }
-        }
-        Err(err) => {
-            log::err(format!("Could not open {:?}\n{}", path, err));
+    if let Ok(file) = File::open(&path) {
+        let videos = serde_json::from_reader(BufReader::new(file))
+            .ok()
+            .filter(|videos: &Vec<VideoWatchLater>| !videos.is_empty());
+
+        match videos {
+            Some(videos) => return videos,
+            None => log::err(format!("Could not load json for {:?}\n", path)),
         }
     }
+
     Vec::new()
 }
 
 pub fn cache_videos(root: &Path, id: &str, videos: &Vec<Video>) -> Result<(), Error> {
     let root = root.join("channels/");
+
     if !Path::exists(&root) {
         fs::create_dir_all(&root).map_err(|_| Error::FileBadAccess)?;
     }
+
     if let Ok(file) = File::create(root.join(format!("{}{}", &id, ".json")).as_path()) {
         serde_json::to_writer_pretty(BufWriter::new(file), videos).map_err(|_| Error::JsonParsing)
     } else {
@@ -154,101 +105,13 @@ pub fn cache_channels(channels: &Channels) -> Result<(), Error> {
             }
         });
 
-        let channels: Vec<ChannelInfo> = channels
-            .iter()
-            .map(ChannelInfo::from)
-            .collect();
+        let channels: Vec<ChannelInfo> = channels.iter().map(ChannelInfo::from).collect();
 
-        serde_json::to_writer_pretty(BufWriter::new(file), &channels).map_err(|_| Error::JsonParsing)
+        serde_json::to_writer_pretty(BufWriter::new(file), &channels)
+            .map_err(|_| Error::JsonParsing)
     } else {
         Err(Error::FileBadAccess)
     }
-}
-
-impl WatchProgressAccumulator {
-    fn accumulate(mut self, line: &str) -> WatchProgressAccumulator {
-        if line.starts_with("start") {
-            self.progress = line
-                .split("=")
-                .last()
-                .and_then(|string| string.parse::<f32>().ok().map(|i| i as i32));
-        } else if line.starts_with("#") {
-            self.id = line.split_once("?v=").map(|(_, id)| id.to_owned());
-        }
-        self
-    }
-}
-
-impl TryFrom<WatchProgressAccumulator> for WatchProgress {
-    type Error = Error;
-    fn try_from(value: WatchProgressAccumulator) -> Result<Self, Error> {
-        Ok(WatchProgress {
-            id: value.id.ok_or(Error::HistoryParsing)?,
-            progress_seconds: value.progress.ok_or(Error::HistoryParsing)?,
-        })
-    }
-}
-
-pub fn fetch_history_one(id: &str) -> Result<WatchProgress, Error> {
-    let root = mpv_shared_path()?;
-    let dir = root.join("mpv/").join("watch_later/");
-
-    if !Path::exists(&dir) {
-        return Err(Error::FileBadAccess);
-    }
-
-    let files = dir.read_dir().map_err(|_| Error::FileBadAccess)?;
-
-    // Get file that matches history id from given title argument
-    files
-        .into_iter()
-        .filter_map(|path| path.ok())
-        .filter_map(|entry| File::open(entry.path()).ok())
-        .find_map(|mut file| {
-            let mut raw = String::new();
-            file.read_to_string(&mut raw).ok();
-            raw.trim()
-                .lines()
-                .fold(
-                    WatchProgressAccumulator::default(),
-                    WatchProgressAccumulator::accumulate,
-                )
-                .try_into()
-                .ok()
-                .filter(|history: &WatchProgress| Some(id) == Some(&history.id))
-        })
-        .ok_or(Error::HistoryParsing)
-}
-
-pub fn fetch_history_all() -> Result<HashMap<String, WatchProgress>, Error> {
-    let root = mpv_shared_path()?;
-    let dir = root.join("mpv/").join("watch_later/");
-
-    if !Path::exists(&dir) {
-        return Err(Error::FileBadAccess);
-    }
-
-    let files = dir.read_dir().map_err(|_| Error::FileBadAccess)?;
-
-    Ok(files
-        .into_iter()
-        .filter_map(|path| path.ok())
-        .filter_map(|entry| File::open(entry.path()).ok())
-        .filter_map(|mut file| {
-            // Will ignore some if watch history was not from a YT video played from this program
-            let mut raw = String::new();
-            file.read_to_string(&mut raw).ok();
-            raw.trim()
-                .lines()
-                .fold(
-                    WatchProgressAccumulator::default(),
-                    WatchProgressAccumulator::accumulate,
-                )
-                .try_into()
-                .ok()
-                .map(|history: WatchProgress| (history.id.clone(), history))
-        })
-        .collect())
 }
 
 pub fn data_directory() -> Result<PathBuf, Error> {
@@ -263,24 +126,4 @@ pub fn data_directory() -> Result<PathBuf, Error> {
     }
 
     Ok(root)
-}
-
-fn mpv_shared_path() -> Result<PathBuf, Error> {
-    match env::consts::OS {
-        "linux" => dirs::state_dir().ok_or(Error::FileBadAccess),
-        "macos" => {
-            // MPV MacOS tries xdg config specifying to $HOME/.config/, then to $HOME/Library/Application Support.
-            // Why? I have no idea. Not a Mac user
-            // This may be the result of future bugs involving watch history not saving
-            dirs::home_dir()
-                .map(|home| home.join(".config/"))
-                .ok_or(Error::FileBadAccess)
-        }
-        "windows" => dirs::data_dir()
-            .or(dirs::data_local_dir())
-            .ok_or(Error::FileBadAccess),
-        _ => {
-            log::err_and_exit("Could not find any directory for mpv. Report in github issues...");
-        }
-    }
 }

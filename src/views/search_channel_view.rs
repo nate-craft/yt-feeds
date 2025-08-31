@@ -5,7 +5,7 @@ use crate::{
     loading::run_while_loading,
     page::Page,
     search::fetch_channel,
-    view::{Error, Message},
+    view::Message,
     yt::{fetch_channel_feed, Channel, Channels},
 };
 
@@ -114,21 +114,12 @@ pub fn show(channels: &Channels, config: &Config) -> Message {
                             feed,
                         ))
                     }
-                    Err(err) => match err {
-                        Error::HistoryParsing => {
-                            view.set_error(&format!(
-                                "{}: '{}'",
-                                "Could not find videos for channel", channel.name
-                            ));
-                        }
-                        Error::CommandFailed(e) => {
-                            view.set_error(&format!(
-                                "Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}",
-                                channel.id, e
-                            ));
-                        }
-                        _ => panic!(),
-                    },
+                    Err(err) => {
+                        view.set_error(&format!(
+                            "Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}",
+                            channel.id, err)
+                        )
+                    }
                 }
             }
         }

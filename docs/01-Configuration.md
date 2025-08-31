@@ -31,10 +31,6 @@ force-seekable=yes
 ytdl-format="bv*[height<=720]+ba/best"
 script-opts=ytdl_hook-ytdl_path=yt-dlp
 
-# progress
-save-position-on-quit
-write-filename-in-watch-later-config
-
 # apperance
 msg-level=all=no
 display-tags-clr
@@ -58,8 +54,6 @@ This can be created in the following locations:
 **Linux**: `~/.config/mpv/mpv.conf`  
 **MacOS**: `~/.config/mpv/mpv.conf`  
 **Windows**: `YOUR_DRIVE:\Users\YOUR_USER\AppData\Roaming\mpv\mpv.conf`
-
-> Note: for watch history to function, both `save-position-on-quit` and `write-filename-in-watch-later-config` must be in your `mpv.conf`
 
 ### Modifying MPV Display
 

@@ -9,16 +9,18 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{io, thread};
 
-struct Flags {
+struct Flags<T> {
     running: AtomicBool,
     detached: AtomicBool,
+    result: Arc<Mutex<Option<T>>>,
 }
 
-impl Flags {
-    fn atomic() -> Arc<Flags> {
+impl<T> Flags<T> {
+    fn atomic() -> Arc<Flags<T>> {
         Arc::new(Flags {
             running: AtomicBool::new(true),
             detached: AtomicBool::new(false),
+            result: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -41,16 +43,54 @@ impl Flags {
     fn set_detached(self: &Arc<Self>, setting: bool) {
         self.detached.store(setting, Ordering::Relaxed);
     }
+
+    fn set_result(self: &Arc<Self>, result: Option<T>) {
+        if let Ok(mut res) = self.result.try_lock() {
+            *res = result;
+        }
+    }
 }
 
 pub fn cmd_while_loading<P>(task: io::Result<Child>, print_fn: P) -> Result<(), Error>
 where
     P: Fn() + Send + 'static,
 {
+    cmd_while_loading_with_background::<_, _, fn() -> Option<()>>(task, print_fn, None).map(|_| ())
+}
+
+pub fn cmd_while_loading_with_background<P, T, R>(
+    task: io::Result<Child>,
+    print_fn: P,
+    background_fn: Option<Box<R>>,
+) -> Result<Option<T>, Error>
+where
+    P: Fn() + Send + 'static,
+    T: Send + Sync + 'static + Clone + Copy + core::fmt::Debug,
+    R: Send + Sync + 'static + Fn() -> Option<T>,
+{
     let steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"];
     let mut step = 0;
-    let flags = Flags::atomic();
+    let flags: Arc<Flags<T>> = Flags::atomic();
     crossterm::terminal::enable_raw_mode().unwrap();
+
+    // Background Return Task - stops on detach/cancellation
+    if let Some(background) = background_fn {
+        thread::spawn({
+            let flags = Arc::clone(&flags);
+            move || loop {
+                if flags.deny_use() {
+                    return;
+                }
+
+                let result = background();
+                if result.is_some() {
+                    flags.set_result(result);
+                }
+
+                thread::sleep(std::time::Duration::from_secs(1));
+            }
+        });
+    }
 
     // Output - stops on detach/cancellation
     thread::spawn({
@@ -93,7 +133,7 @@ where
         }
     });
 
-    // Task - stop by detach/cancellation
+    // Main Task - stop by detach/cancellation
     match task {
         Ok(command) => {
             let command = Arc::new(Mutex::new(command));
@@ -128,7 +168,11 @@ where
     loop {
         if flags.deny_use() {
             crossterm::terminal::disable_raw_mode().unwrap();
-            return Ok(());
+            return flags
+                .result
+                .try_lock()
+                .map_err(|e| Error::InternalError(e.to_string()))
+                .map(|guard| *guard);
         }
     }
 }

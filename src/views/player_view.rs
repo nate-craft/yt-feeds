@@ -8,8 +8,9 @@ use crossterm::style::Stylize;
 
 use crate::{
     config::Config,
-    loading::{cmd_while_loading, run_while_loading},
+    loading::{cmd_while_loading, cmd_while_loading_with_background, run_while_loading},
     log,
+    mpv::{WatchProgress, MPV_SOCKET},
     view::{Error, Message, PlayType, ViewPage},
     yt::{fetch_channel_feed, Channel, Channels, Video, VideoInfo, VideoWatchLater},
 };
@@ -23,7 +24,7 @@ pub fn show(
     last_view: &ViewPage,
     config: &Config,
 ) -> Message {
-    let (url, title, mut view) = match &play_type {
+    let (url, title, progress_before, mut view) = match &play_type {
         PlayType::Existing(video_index) => {
             let channel = channels.channel((*video_index).into()).unwrap();
             let video = channel.video(*video_index).unwrap();
@@ -33,7 +34,7 @@ pub fn show(
                 "▶".to_owned(),
             );
 
-            (video.url(), video.title.clone(), view)
+            (video.url(), video.title.clone(), video.progress, view)
         }
         PlayType::New(video_info, _) => {
             let view = View::new(
@@ -42,7 +43,7 @@ pub fn show(
                 "▶".to_owned(),
             );
 
-            (video_info.url(), video_info.title.clone(), view)
+            (video_info.url(), video_info.title.clone(), None, view)
         }
         PlayType::WatchLater(index) => {
             let later = watch_later.get(*index).unwrap();
@@ -52,12 +53,17 @@ pub fn show(
                 "▶".to_owned(),
             );
 
-            (later.video.url(), later.video.title.clone(), view)
+            (
+                later.video.url(),
+                later.video.title.clone(),
+                later.video.progress,
+                view,
+            )
         }
     };
 
     let last_view = last_view.or_inner();
-    let mut played = false;
+    let mut play_progress: Option<WatchProgress> = None;
 
     loop {
         view.clear_content();
@@ -73,22 +79,31 @@ pub fn show(
                         view.set_error("i is not a valid option!");
                     }
                 }
-                'p' => {
-                    if let Err(Error::CommandFailed(e)) = play(&title, &url) {
+                'p' => match play(&title, &url, progress_before.as_ref()) {
+                    Err(Error::CommandFailed(e)) => {
                         view.set_error(&format!("Could not run play command: mpv.\nError: {}", e));
-                    } else {
-                        played = true;
+                    }
+                    Ok(progress) => {
+                        if let Some(progress) = progress {
+                            play_progress = Some(progress);
+                        }
                         view.clear_error();
                     }
-                }
-                'P' => {
-                    if let Err(Error::CommandFailed(e)) = play_and_download(&title, &url, config) {
+                    _ => panic!(),
+                },
+                'P' => match play_and_download(&title, &url, config, progress_before.as_ref()) {
+                    Err(Error::CommandFailed(e)) => {
                         view.set_error(&format!("Could not play video\nError: {}", e));
-                    } else {
-                        played = true;
+                    }
+                    Ok(progress) => {
+                        if let Some(progress) = progress {
+                            play_progress = Some(progress);
+                        }
+
                         view.clear_error();
                     }
-                }
+                    _ => panic!(),
+                },
                 's' => {
                     if let Err(Error::CommandFailed(e)) = download(&title, &url, config) {
                         view.set_error(&format!("Could not run download video\nError: {}", e));
@@ -108,11 +123,19 @@ pub fn show(
                     view.clear_error();
                 }
                 'b' => {
-                    if played {
+                    if let Some(progress) = play_progress {
                         if let PlayType::Existing(index) = play_type {
-                            return Message::Played(Rc::new(last_view.clone()), Some(*index));
+                            return Message::Played(
+                                Rc::new(last_view.clone()),
+                                Some(*index),
+                                Some(progress),
+                            );
                         } else {
-                            return Message::Played(Rc::new(last_view.clone()), None);
+                            return Message::Played(
+                                Rc::new(last_view.clone()),
+                                None,
+                                Some(progress),
+                            );
                         }
                     }
                     return last_view.to_owned().into();
@@ -203,7 +226,12 @@ fn subscribe(view: &mut View, info: &VideoInfo, config: &Config) -> Option<Messa
     None
 }
 
-fn play_and_download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
+fn play_and_download(
+    title: &str,
+    url: &str,
+    config: &Config,
+    progress_before: Option<&WatchProgress>,
+) -> Result<Option<WatchProgress>, Error> {
     let path = config.saved_video_path.clone();
     let url_clone = url.to_owned();
 
@@ -220,7 +248,7 @@ fn play_and_download(title: &str, url: &str, config: &Config) -> Result<(), Erro
         }
     });
 
-    play(title, url)
+    play(title, url, progress_before)
 }
 
 fn download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
@@ -242,13 +270,23 @@ fn download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
     )
 }
 
-fn play(title: &str, url: &str) -> Result<(), Error> {
+fn play(
+    title: &str,
+    url: &str,
+    progress: Option<&WatchProgress>,
+) -> Result<Option<WatchProgress>, Error> {
     let title = title.to_owned();
     let url = url.to_owned();
 
-    cmd_while_loading(
+    cmd_while_loading_with_background(
         Command::new("mpv")
             .arg(url)
+            .arg(format!("{}{}", "--input-ipc-server=", MPV_SOCKET))
+            .arg(format!(
+                "{}{}",
+                "--start=",
+                progress.map(|progress| progress.current).unwrap_or(0)
+            ))
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn(),
@@ -256,5 +294,6 @@ fn play(title: &str, url: &str) -> Result<(), Error> {
             print!("\r\n{}\r\n\r\n", title.as_str().cyan().bold());
             print!("{} '{}'", "Playing ".green(), title.as_str().yellow());
         },
+        Some(Box::new(|| WatchProgress::playing())),
     )
 }

@@ -9,7 +9,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{cache, config::Config, log, view::Error};
+use crate::{cache, config::Config, log, mpv::WatchProgress, view::Error};
 
 #[derive(Debug, Clone)]
 pub struct Channel {
@@ -38,18 +38,16 @@ pub struct VideoWatchLater {
     pub channel: ChannelInfo,
 }
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Channels(pub Vec<Channel>);
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
 pub struct Video {
     pub title: String,
     pub id: String,
-    pub watched: bool,
     pub upload: DateTime<Local>,
     pub description: String,
-    pub progress_seconds: Option<i32>,
+    pub progress: Option<WatchProgress>,
 }
 
 #[derive(Default)]
@@ -73,13 +71,10 @@ pub struct ChannelIndex(pub usize);
 
 impl Channels {
     pub fn new(channels_cached: &[ChannelInfo]) -> Channels {
-        let history = cache::fetch_history_all().ok();
         Channels(
             channels_cached
                 .iter()
-                .filter_map(|cached: &ChannelInfo| {
-                    cache::load_channel(cached, history.as_ref()).ok()
-                })
+                .filter_map(|cached: &ChannelInfo| cache::load_channel(cached).ok())
                 .collect::<Vec<Channel>>(),
         )
     }
@@ -159,13 +154,9 @@ impl Video {
             title: title.into(),
             id: id.into(),
             upload: upload_date,
-            watched: false,
-            progress_seconds: None,
+            progress: None,
             description: description.into(),
         }
-    }
-    pub fn watched(&mut self) {
-        self.watched = true;
     }
 
     pub fn url(&self) -> String {
@@ -273,8 +264,7 @@ pub fn fetch_channel_feed(
         .lines()
         .filter_map(|line| -> Option<Value> { serde_json::from_str(line).ok() })
         .filter_map(|json: Value| -> Option<Video> {
-            json
-                .as_object()
+            json.as_object()
                 .expect("JSON is not object")
                 .iter()
                 .fold(VideoAccumulator::default(), VideoAccumulator::accumulate)

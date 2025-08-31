@@ -9,7 +9,6 @@ use crossterm::style::Stylize;
 
 use crate::{
     clear_screen, log,
-    view::Error,
     yt::{ChannelInfo, Channels},
 };
 use crate::{yt, Channel};
@@ -30,14 +29,8 @@ pub fn fetch_updates(tx: Sender<Channel>, channels: Vec<ChannelInfo>, video_coun
                     tx.send(Channel::new(channel.name, channel.id, feed))
                         .unwrap();
                 }
-                Err(err) => match err {
-                    Error::HistoryParsing => {
-                        log::err(format!("Could not find videos for channel: '{}'", channel.name));
-                    }
-                    Error::CommandFailed(e) => {
-                        log::err(format!("Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}", channel.id, e));
-                    }
-                    _ => {}
+                Err(err) => {
+                    log::err(format!("Could not load in feed for channel: '{}' with command 'yt-dlp'.\nError: {}", channel.id, err));
                 },
             }
         });

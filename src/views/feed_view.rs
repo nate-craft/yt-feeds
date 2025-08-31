@@ -7,7 +7,7 @@ use crate::{
     clear_screen,
     finder::Finder,
     page::Page,
-    utilities::{self, time_formatted_short, time_since_formatted},
+    utilities::{self, time_since_formatted},
     view::{Message, PlayType, ViewPage},
     yt::{ChannelIndex, Channels, Video, VideoIndex},
 };
@@ -37,7 +37,7 @@ impl<'a> VideoEntry<'a> {
 
     fn get_title_formatted(&'a self, query: Option<&str>) -> String {
         let video = self.get_video();
-        if video.watched {
+        if video.progress.is_some() {
             utilities::highlight_query(&video.title, query, Some(Color::Yellow))
         } else {
             utilities::highlight_query(&video.title, query, Some(Color::DarkYellow))
@@ -132,7 +132,11 @@ fn show_feed(
                     entry.get_title_formatted(finder.query()),
                     channel,
                     time_since_formatted(video.upload),
-                    time_formatted_short(video.progress_seconds)
+                    video
+                        .progress
+                        .as_ref()
+                        .map(|progress| progress.formatted())
+                        .unwrap_or("Not Watched".to_owned())
                 )
             } else {
                 format!(
@@ -140,7 +144,11 @@ fn show_feed(
                     i.to_string().green(),
                     entry.get_title_formatted(finder.query()),
                     time_since_formatted(video.upload),
-                    time_formatted_short(video.progress_seconds)
+                    video
+                        .progress
+                        .as_ref()
+                        .map(|progress| progress.formatted())
+                        .unwrap_or("Not Watched".to_owned())
                 )
             };
             view.add_line(line);

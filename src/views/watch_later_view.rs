@@ -4,7 +4,7 @@ use itertools::Itertools;
 use crate::{
     finder::Finder,
     page::Page,
-    utilities::{highlight_query, time_formatted_short, time_since_formatted},
+    utilities::{highlight_query, time_since_formatted},
     view::{Message, PlayType},
     views::ViewInput,
     yt::{Video, VideoWatchLater},
@@ -13,7 +13,7 @@ use crate::{
 use super::View;
 
 fn get_title_formatted(video: &Video, query: Option<&str>) -> String {
-    if video.watched {
+    if video.progress.is_some() {
         highlight_query(&video.title, query, Some(Color::Yellow))
     } else {
         highlight_query(&video.title, query, Some(Color::DarkYellow))
@@ -47,7 +47,12 @@ pub fn show(watch_later: &Vec<VideoWatchLater>) -> Message {
                 get_title_formatted(&entry.video, finder.query()),
                 entry.channel.name,
                 time_since_formatted(entry.video.upload),
-                time_formatted_short(entry.video.progress_seconds)
+                entry
+                    .video
+                    .progress
+                    .as_ref()
+                    .map(|progress| progress.formatted())
+                    .unwrap_or("Not Watched".to_owned())
             );
             view.add_line(line);
         });

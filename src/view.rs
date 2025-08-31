@@ -1,6 +1,9 @@
 use std::{fmt::Display, rc::Rc};
 
-use crate::yt::{Channel, ChannelIndex, VideoIndex, VideoInfo, VideoWatchLater};
+use crate::{
+    mpv::WatchProgress,
+    yt::{Channel, ChannelIndex, VideoIndex, VideoInfo, VideoWatchLater},
+};
 
 pub type LastView = Rc<ViewPage>;
 pub type LastIndex = usize;
@@ -33,7 +36,7 @@ pub enum Message {
     MixedFeed(Option<LastIndex>),
     ChannelFeed(ChannelIndex, Option<LastIndex>),
     Play(PlayType),
-    Played(LastView, Option<VideoIndex>),
+    Played(LastView, Option<VideoIndex>, Option<WatchProgress>),
     Subscribe(Channel),
     Unsubscribe(ChannelIndex),
     Information(VideoIndex, LastView),
@@ -59,7 +62,7 @@ pub enum Error {
     VideoParsing,
     VideoNotAvailable,
     TomlParsing,
-    HistoryParsing,
+    InternalError(String),
 }
 
 impl From<ViewPage> for Message {
@@ -91,8 +94,8 @@ impl Display for Error {
             Error::ChannelParsing => "Could not parse channel information from yt-dlp".to_owned(),
             Error::VideoParsing => "Could not parse video information from yt-dlp".to_owned(),
             Error::TomlParsing => "Could not load toml configuration".to_owned(),
-            Error::HistoryParsing => "Could not parse local MPV history".to_owned(),
             Error::VideoNotAvailable => "Fetched video was not available".to_owned(),
+            Error::InternalError(e) => format!("Internal Error({})", e.to_string()),
         };
 
         write!(f, "{}", msg)

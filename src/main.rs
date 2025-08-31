@@ -27,6 +27,7 @@ mod config;
 mod finder;
 mod loading;
 mod log;
+mod mpv;
 mod page;
 mod search;
 mod updates;
@@ -167,28 +168,12 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
         Message::WatchLaterRemove(index) => {
             state.view = ViewPage::WatchLater;
             state.watch_later.remove(index);
-
-            if let Some(root) = &state.root_dir {
-                if let Err(err) = cache::cache_watch_later(root, &state.watch_later) {
-                    log::err(format!(
-                        "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
-                        err
-                    ));
-                }
-            }
+            try_cache_watch_later_all(&state);
         }
         Message::WatchLaterAdd(video_info, last_view) => {
             state.view = (*last_view).clone();
             state.watch_later.push(video_info);
-
-            if let Some(root) = &state.root_dir {
-                if let Err(err) = cache::cache_watch_later(root, &state.watch_later) {
-                    log::err(format!(
-                        "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
-                        err
-                    ));
-                }
-            }
+            try_cache_watch_later_all(&state);
         }
         Message::Play(play_type) => {
             if let PlayType::New(_, cached_search) = &play_type {
@@ -196,7 +181,7 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
             }
             state.view = ViewPage::Play(play_type, Rc::new(state.view.clone()));
         }
-        Message::Played(view_page, video_index) => {
+        Message::Played(view_page, video_index, progress) => {
             state.view = view_page.as_ref().to_owned();
 
             // do not cache single searched video playing
@@ -204,29 +189,13 @@ fn handle_message(message: Message, state: &mut AppState, config: &Config) {
                 return;
             };
 
-            // mark watched
+            // save progress from played
             let channel = state.channels.channel_mut(video_index.into()).unwrap();
-            let video = channel.video_mut(video_index).unwrap();
-            video.watched();
-
-            // mark progress
-            let history_fetched = cache::fetch_history_one(&video.id);
-            match history_fetched {
-                Ok(history_fetched) => {
-                    video.progress_seconds = Some(history_fetched.progress_seconds)
-                }
-                Err(e) => log::err(format!("Could not fetch watch history.\nError: {:?}", e)),
-            }
+            channel.video_mut(video_index).unwrap().progress = progress;
+            let channel = state.channels.channel(video_index.into()).unwrap();
 
             // cache singular channel
-            if let Some(root) = &state.root_dir {
-                if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
-                    log::err(format!(
-                        "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                        err
-                    ));
-                }
-            }
+            try_cache_watch_later(&state, &channel);
         }
         Message::Information(video_index, view_page) => {
             state.view = ViewPage::Information(video_index, view_page);
@@ -322,6 +291,28 @@ fn try_cache_channels(channels: &Channels) {
             "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
             err
         ));
+    }
+}
+
+fn try_cache_watch_later(state: &AppState, channel: &Channel) {
+    if let Some(root) = &state.root_dir {
+        if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
+            log::err(format!(
+                "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
+                err
+            ));
+        }
+    }
+}
+
+fn try_cache_watch_later_all(state: &AppState) {
+    if let Some(root) = &state.root_dir {
+        if let Err(err) = cache::cache_watch_later(root, &state.watch_later) {
+            log::err(format!(
+                "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
+                err
+            ));
+        }
     }
 }
 
