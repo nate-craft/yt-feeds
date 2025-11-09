@@ -2,6 +2,13 @@
 name = "yt-feeds"
 version = "1.0.0"
 edition = "2024"
+authors = ["Nate Craft"]
+keywords = ["youtube", "CLI", "TUI", "cross-platform", "player", "yt-dlp"]
+license = "MIT"
+description = "Cross-platform simple, fast, and distraction free CLI application to view YouTube videos from your favorite channels"
+readme = "README.md"
+homepage = "https://github.com/nate-craft/yt-feeds"
+repository = "https://github.com/nate-craft/yt-feeds"
 
 [dependencies]
 serde = { version = "1.0.218", features = ["derive"] }
