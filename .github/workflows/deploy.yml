@@ -70,7 +70,7 @@ jobs:
           else
             SUFFIX=""
           fi
-          DIR="target/${{ matrix.target }}/release"
+          DIR="target/release"
           BIN_NAME="yt-feeds-${VERSION}-${{ matrix.target}}${SUFFIX}"
           mv "${DIR}/yt-feeds" "${DIR}/${BIN_NAME}"
           echo "BIN_NAME=${BIN_NAME}" >> $GITHUB_ENV
