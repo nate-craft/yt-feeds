@@ -8,7 +8,8 @@ permissions:
 
 jobs:
   version:
-      steps: echo "VERSION=$(grep '^version =' Cargo.toml | cut -d' ' -f3 | tr -d '\"')" >> $GITHUB_ENV
+    steps:
+      run: echo "VERSION=$(grep '^version =' Cargo.toml | cut -d' ' -f3 | tr -d '\"')" >> $GITHUB_ENV
 
   release:
     runs-on: ubuntu-latest
