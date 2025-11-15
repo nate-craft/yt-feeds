@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create $(grep '^version =' Cargo.toml | cut -d' ' -f3 | tr -d '\"')"
+        run: gh release create "$(grep '^version =' Cargo.toml | cut -d' ' -f3 | tr -d '\"')"
 
   build:
     runs-on: ${{ matrix.runner }}
