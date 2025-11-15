@@ -11,22 +11,19 @@ use super::ViewInput;
 
 pub fn show(channels: &Channels) -> Message {
     let mut page = Page::new(channels.len(), 1);
-    let user = users::get_current_username()
-        .map(|user| {
-            let mut user = user.to_string_lossy().to_string();
-            if let Some(first) = user.get_mut(0..1) {
-                first.make_ascii_uppercase();
-            }
-            if let Some(last) = user.chars().last() {
-                if last == 's' {
-                    user.push('\'');
-                } else {
-                    user.push_str("'s");
-                }
-            }
-            user
-        })
-        .unwrap_or("YT-Feeds".to_string());
+    let mut user = whoami::username();
+
+    if let Some(first) = user.get_mut(0..1) {
+        first.make_ascii_uppercase();
+    }
+
+    if let Some(last) = user.chars().last() {
+        if last == 's' {
+            user.push('\'');
+        } else {
+            user.push_str("'s");
+        }
+    }
 
     let mut view = View::new(
         format!("{} Home", user),
