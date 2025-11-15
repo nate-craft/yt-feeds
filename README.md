@@ -36,10 +36,14 @@ YT-Feeds requires mpv and yt-dlp to be installed in order to function:
 - [mpv](https://github.com/mpv-player/mpv)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 
-For dependency guidance, see the [installation page](docs/00-Installation.md).
-
+For dependency guidance, see the [installation page](docs/00-Installation.md).  
 
 ## Configuration
 
 For configuration, error logging, and saved data storage, see the [configuration page](docs/01-Configuration.md).
+
+## Limitations
+
+Currently, watch history is not supported on Windows as it does not support Unix sockets. A custom work-around
+is planned for the future.
 

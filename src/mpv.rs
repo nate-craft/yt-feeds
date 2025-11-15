@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
-    os::unix::net::UnixStream,
 };
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +30,9 @@ impl WatchProgress {
     }
 
     pub fn playing() -> Option<WatchProgress> {
-        if let Ok(result) = MpvCommand::GetProgress.run() {
+        if cfg!(target_os = "windows") {
+            return None;
+        } else if let Ok(result) = MpvCommand::GetProgress.run() {
             let MpvResult::WatchProgress(progress) = result;
             return Some(progress);
         }
@@ -49,7 +50,7 @@ impl WatchProgress {
 }
 
 impl MpvCommand {
-    pub fn run(&self) -> Result<MpvResult, std::io::Error> {
+    fn run(&self) -> Result<MpvResult, std::io::Error> {
         match self {
             MpvCommand::GetProgress => {
                 let cmd_current =
@@ -82,7 +83,8 @@ impl MpvCommand {
         }
     }
 
-    pub fn read_from_socket(command: &str) -> Result<String, std::io::Error> {
+    fn read_from_socket(command: &str) -> Result<String, std::io::Error> {
+        use std::os::unix::net::UnixStream;
         let mut stream = UnixStream::connect(MPV_SOCKET)?;
         stream.write_all(command.as_bytes())?;
         stream.write_all(b"\n")?;
