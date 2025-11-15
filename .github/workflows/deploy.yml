@@ -7,13 +7,17 @@ permissions:
   contents: write
 
 jobs:
+  version:
+      steps: echo "VERSION=$(grep '^version =' Cargo.toml | cut -d' ' -f3 | tr -d '\"')" >> $GITHUB_ENV
+
   release:
     runs-on: ubuntu-latest
+    needs: version
     steps:
       - uses: actions/checkout@v4
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create ${{ github.ref_name }}
+        run: gh release create ${{ env.VERSION }}
 
   build:
     runs-on: ${{ matrix.runner }}
@@ -56,6 +60,7 @@ jobs:
           cargo binstall --no-confirm cross
  
       - name: Build Binary
+        if: matrix.command == 'cross'
         run: ${{ matrix.command }} build --verbose --locked --release --target ${{ matrix.target }}
 
       - name: Name Binary
@@ -65,13 +70,16 @@ jobs:
           else
             SUFFIX=""
           fi
-          echo "BIN_NAME=yt-feeds${SUFFIX}" >> $GITHUB_ENV
-        
+          DIR="target/${{ matrix.target }}/release"
+          BIN_NAME="yt-feeds-${VERSION}-${{ matrix.target}}${SUFFIX}"
+          mv "${DIR}/yt-feeds" "${DIR}/${BIN_NAME}"
+          echo "BIN_NAME=${BIN_NAME}" >> $GITHUB_ENV
+          
       - name: Upload binaries
         uses: softprops/action-gh-release@v2
         with:
           files: target/${{ matrix.target }}/release/${{ env.BIN_NAME }}
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
