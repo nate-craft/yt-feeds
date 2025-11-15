@@ -68,6 +68,7 @@ jobs:
         run: ${{ matrix.command }} build --release --target ${{ matrix.target }}
 
       - name: Name Binary
+        shell: bash
         run: |
           if [[ "${{ matrix.target }}" =~ "-pc-windows-" ]]; then
             SUFFIX=".exe"
