@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    io::{BufRead, BufReader, Write},
-};
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -83,8 +80,13 @@ impl MpvCommand {
         }
     }
 
+    #[cfg(not(target_os = "windows"))]
     fn read_from_socket(command: &str) -> Result<String, std::io::Error> {
-        use std::os::unix::net::UnixStream;
+        use std::{
+            io::{BufRead, BufReader, Write},
+            os::unix::net::UnixStream,
+        };
+
         let mut stream = UnixStream::connect(MPV_SOCKET)?;
         stream.write_all(command.as_bytes())?;
         stream.write_all(b"\n")?;
@@ -94,5 +96,10 @@ impl MpvCommand {
         let mut reader = BufReader::new(&stream);
         reader.read_line(&mut input)?;
         Ok(input)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn read_from_socket(_: &str) -> Result<String, std::io::Error> {
+        Ok("".to_owned())
     }
 }
