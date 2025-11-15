@@ -65,7 +65,7 @@ jobs:
         run: rustup target add x86_64-apple-darwin
  
       - name: Build Binary
-        run: ${{ matrix.command }} build --verbose --locked --release --target ${{ matrix.target }}
+        run: ${{ matrix.command }} build --release --target ${{ matrix.target }}
 
       - name: Name Binary
         run: |
