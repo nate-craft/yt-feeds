@@ -55,12 +55,12 @@ jobs:
   
       - name: Install Cross
         shell: bash
+        if: matrix.command == 'cross'
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall --no-confirm cross
  
       - name: Build Binary
-        if: matrix.command == 'cross'
         run: ${{ matrix.command }} build --verbose --locked --release --target ${{ matrix.target }}
 
       - name: Name Binary
