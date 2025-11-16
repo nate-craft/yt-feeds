@@ -116,6 +116,7 @@ pub fn show(
                     thread::spawn(|| {
                         Command::new("mpv")
                             .arg(url)
+                            .arg("--ytdl-raw-options=remote-components=ejs:github")
                             .stdout(Stdio::null())
                             .stderr(Stdio::null())
                             .spawn()
@@ -237,6 +238,8 @@ fn play_and_download(
 
     thread::spawn(move || {
         if let Err(error) = Command::new("yt-dlp")
+            .arg("--remote-components")
+            .arg("ejs:github")
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", path))
             .arg(url_clone)
@@ -257,6 +260,8 @@ fn download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
 
     cmd_while_loading(
         Command::new("yt-dlp")
+            .arg("--remote-components")
+            .arg("ejs:github")
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", config.saved_video_path))
             .arg(url)
@@ -281,6 +286,7 @@ fn play(
     cmd_while_loading_with_background(
         Command::new("mpv")
             .arg(url)
+            .arg("--ytdl-raw-options=remote-components=ejs:github")
             .arg(format!("{}{}", "--input-ipc-server=", MPV_SOCKET))
             .arg(format!(
                 "{}{}",
