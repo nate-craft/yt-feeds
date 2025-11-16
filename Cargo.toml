@@ -1,6 +1,6 @@
 [package]
 name = "yt-feeds"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2024"
 authors = ["Nate Craft"]
 keywords = ["youtube", "CLI", "TUI", "player", "yt-dlp"]

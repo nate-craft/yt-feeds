@@ -10,5 +10,5 @@ ___
  - [x] Add watch later feed
  - [x] Add github release automations
  - [x] Add automated AUR upload
- - [ ] Switch to IPC socket for faster MPV communication (see: nate-craft/Auditorium)
- - [ ] Catch std output from MPV commands
+ - [x] Switch to IPC socket for faster MPV communication (see: nate-craft/Auditorium)
+ - [x] Catch std output from MPV commands

@@ -117,8 +117,8 @@ pub fn show(
                         Command::new("mpv")
                             .arg(url)
                             .arg("--ytdl-raw-options=remote-components=ejs:github")
-                            .stdout(Stdio::null())
-                            .stderr(Stdio::null())
+                            .stdout(Stdio::piped())
+                            .stderr(Stdio::piped())
                             .spawn()
                     });
                     view.clear_error();
@@ -243,8 +243,8 @@ fn play_and_download(
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", path))
             .arg(url_clone)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .output()
         {
             Ok(result) => {
@@ -270,8 +270,8 @@ fn download(title: &str, url: &str, config: &Config) -> Result<(), Error> {
             .arg("-o")
             .arg(format!("{}%(title)s.%(ext)s", config.saved_video_path))
             .arg(url)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn(),
         move || {
             print!("\r\n{}\r\n\r\n", title.as_str().cyan().bold());
@@ -298,8 +298,8 @@ fn play(
                 "--start=",
                 progress.map(|progress| progress.current).unwrap_or(0)
             ))
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn(),
         move || {
             print!("\r\n{}\r\n\r\n", title.as_str().cyan().bold());

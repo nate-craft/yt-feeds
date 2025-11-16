@@ -1,9 +1,10 @@
-use crate::clear_screen;
 use crate::view::Error;
+use crate::{clear_screen, log};
 use crossterm::event;
 use crossterm::event::KeyCode;
 use crossterm::style::Stylize;
-use std::process::Child;
+use std::io::Read;
+use std::process::{exit, Child};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -151,10 +152,21 @@ where
                     }
 
                     // stop all if finished
-                    if let Ok(Some(_)) = command.lock().unwrap().try_wait() {
-                        flags.set_running(false);
-                        return;
+                    let mut command = command.lock().unwrap();
+                    let Ok(Some(_)) = command.try_wait() else {
+                        continue;
+                    };
+
+                    // Log any errors from stderr
+                    if let Some(mut err) = command.stderr.take() {
+                        let mut buffer = String::new();
+                        if err.read_to_string(&mut buffer).is_ok() && buffer.len() > 1 {
+                            log::err(buffer);
+                        }
                     }
+
+                    flags.set_running(false);
+                    return;
                 }
             });
         }
