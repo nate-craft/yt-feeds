@@ -56,7 +56,7 @@ pub fn show(config: &Config, cached_search: Option<&LastSearch>) -> Message {
     let results = &search_shared_cached.0;
     let input = &search_shared_cached.1;
 
-    let mut page = Page::new(results.len(), 1);
+    let mut page = Page::new(results.len(), 3);
 
     let mut view = View::new(
         format!("Videos for '{}'", &input),
