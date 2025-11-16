@@ -51,6 +51,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         
       - name: Version
+        shell: bash
         run: echo "VERSION=$(grep '^version =' Cargo.toml | cut -d' ' -f3 | tr -d '\"')" >> $GITHUB_ENV
   
       - name: Install Cross
