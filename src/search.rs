@@ -30,9 +30,9 @@ impl ChannelInfoAccumulator {
     pub fn accumulate(mut self, (key, value): (&String, &Value)) -> ChannelInfoAccumulator {
         let key = key.as_str();
         if key.eq("channel_id") {
-            self.id = Some(value.as_str().unwrap().to_owned());
+            self.id = value.as_str().map(|value| value.to_owned());
         } else if key.eq("channel") {
-            self.name = Some(value.as_str().unwrap().to_owned());
+            self.name = value.as_str().map(|value| value.to_owned());
         }
         self
     }
@@ -52,23 +52,23 @@ impl VideoInfoAccumulator {
     pub fn accumulate(mut self, (key, value): (&String, &Value)) -> VideoInfoAccumulator {
         let key = key.as_str();
         if key.eq("channel_id") {
-            self.channel_id = Some(value.as_str().unwrap().to_owned());
+            self.channel_id = value.as_str().map(|value| value.to_owned());
         } else if key.eq("channel") {
-            self.channel_name = Some(value.as_str().unwrap().to_owned());
+            self.channel_name = value.as_str().map(|value| value.to_owned());
         } else if key.eq("id") {
-            self.video_id = Some(value.as_str().unwrap().to_owned());
+            self.video_id = value.as_str().map(|value| value.to_owned());
         } else if key.eq("title") {
-            self.video_name = Some(value.as_str().unwrap().to_owned());
+            self.video_name = value.as_str().map(|value| value.to_owned());
         } else if key.eq("availability") {
             self.available = value.is_null();
         } else if key.eq("url") {
-            self.is_short = value.as_str().unwrap().contains("/shorts/")
+            self.is_short = value
+                .as_str()
+                .map(|value| value.contains("/shorts/"))
+                .unwrap_or(false)
         } else if key.eq("timestamp") {
-            self.upload = Some(
-                DateTime::from_timestamp(value.as_i64().unwrap_or(0), 0)
-                    .unwrap()
-                    .with_timezone(&Local),
-            );
+            self.upload = DateTime::from_timestamp(value.as_i64().unwrap_or(0), 0)
+                .map(|time| time.with_timezone(&Local));
         }
         self
     }

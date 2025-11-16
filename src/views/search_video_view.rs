@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crossterm::style::Stylize;
 
 use crate::{
+    clear_screen,
     config::Config,
     loading::run_while_loading,
     page::Page,
@@ -62,6 +63,8 @@ pub fn show(config: &Config, cached_search: Option<&LastSearch>) -> Message {
         "(p)revious, (n)ext, b(ack), q(uit)".to_owned(),
         "▶".to_owned(),
     );
+
+    clear_screen();
 
     loop {
         view.clear_content();
