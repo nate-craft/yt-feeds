@@ -237,7 +237,7 @@ fn play_and_download(
     let url_clone = url.to_owned();
 
     thread::spawn(move || {
-        if let Err(error) = Command::new("yt-dlp")
+        match Command::new("yt-dlp")
             .arg("--remote-components")
             .arg("ejs:github")
             .arg("-o")
@@ -245,9 +245,14 @@ fn play_and_download(
             .arg(url_clone)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn()
+            .output()
         {
-            log::err(error);
+            Ok(result) => {
+                if let Ok(err) = String::from_utf8(result.stderr) && !err.is_empty() {
+                    log::err(err)
+                }
+            }
+            Err(err) => log::err(err),
         }
     });
 

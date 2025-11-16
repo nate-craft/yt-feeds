@@ -11,4 +11,4 @@ ___
  - [x] Add github release automations
  - [x] Add automated AUR upload
  - [ ] Switch to IPC socket for faster MPV communication (see: nate-craft/Auditorium)
- - [ ] Make errors much more descriptive
+ - [ ] Catch std output from MPV commands
