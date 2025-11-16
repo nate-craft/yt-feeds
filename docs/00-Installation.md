@@ -4,7 +4,17 @@ ___
 
 ## Cargo
 
-YT-Feeds can be installed via [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
+Precompiled binaries can be found on the [AUR](https://aur.archlinux.org)
+```bash
+paru -Syu yt-feeds
+```
+
+For cross-platform support, use [cargo-binstall](https://github.com/cargo-bins/cargo-binstall):
+```bash
+cargo binstall yt-feeds
+```
+
+Or, by source with [cargo](https://github.com/cargo-bins/cargo-binstall):
 ```bash
 cargo install --git https://github.com/nate-craft/yt-feeds
 ```
