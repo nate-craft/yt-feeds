@@ -1,6 +1,6 @@
 [package]
 name = "yt-feeds"
-version = "1.0.5"
+version = "1.1.0"
 edition = "2024"
 authors = ["Nate Craft"]
 keywords = ["youtube", "CLI", "TUI", "player", "yt-dlp"]
@@ -11,11 +11,13 @@ homepage = "https://github.com/nate-craft/yt-feeds"
 repository = "https://github.com/nate-craft/yt-feeds"
 
 [dependencies]
+chrono = { version = "0.4.40", features = ["serde"] }
 serde = { version = "1.0.218", features = ["derive"] }
 serde_json = { version = "1.0.139"}
 itertools = "0.14.0"
 dirs = "6.0.0"
-chrono = { version = "0.4.40", features = ["serde"] }
 crossterm = "0.28.1"
 toml = "0.8.20"
 whoami = "1.6.1"
+anyhow = "1.0.100"
+enum_dispatch = "0.3.13"

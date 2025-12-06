@@ -1,27 +1,37 @@
 use std::{fs::File, io::Write, process};
 
+use anyhow::anyhow;
 use chrono::Local;
 use crossterm::style::Stylize;
 
-use crate::{cache::data_directory, clear_screen};
+use crate::{
+    display::screen::Screen,
+    input::Input,
+    storage::directory::{Directory, Dirs},
+};
 
-pub fn err_and_exit(message: impl ToString) -> ! {
-    clear_screen();
-    eprintln!("{}", message.to_string().red().italic());
-    err(message);
-    process::exit(0);
+pub fn error_exit(error: anyhow::Error) -> ! {
+    error_exit_msg(&error.to_string())
 }
 
-pub fn err(message: impl ToString) {
-    let result = data_directory()
-        .map_err(|_| "Data directory could not be founded!")
-        .map(|path| path.join("logs.txt"))
+pub fn error_exit_msg(message: &str) -> ! {
+    Screen::clear();
+    error_log(message);
+    let _ = Input::typing_enable();
+    eprintln!("{}", message.red().italic());
+    process::exit(1);
+}
+
+pub fn error_log(message: &str) {
+    let result = Directory::try_from(Dirs::Data)
+        .map_err(|e| anyhow!(e).context("yt-feeds data directory could not be found!"))
+        .and_then(|path| path.file("logs.txt"))
         .and_then(|path| {
             File::options()
                 .append(true)
                 .create(true)
                 .open(path)
-                .map_err(|_| "Log file could not be created!")
+                .map_err(|e| anyhow!(e).context("Erorr logging file could not be created!"))
         })
         .and_then(|mut file| {
             let formatted = format!(
@@ -30,13 +40,15 @@ pub fn err(message: impl ToString) {
                 message.to_string()
             );
             file.write_all(formatted.as_bytes())
-                .map_err(|_| "Log file could not be modified!")
+                .map_err(|e| anyhow!(e).context("Log file could not be modified!"))
         });
 
     if let Err(err) = result {
+        let _ = Input::typing_enable();
         eprintln!(
-            "Catastrophic error: Could not load log file. Reason\n {}",
-            err
+            "  Catstrophic error: \n{}\n  Original error: {}",
+            err.to_string().red().italic(),
+            message.red().italic(),
         );
         process::exit(1);
     }

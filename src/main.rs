@@ -1,327 +1,52 @@
-use core::panic;
-use std::path::PathBuf;
-use std::process::{self, Command};
-use std::rc::Rc;
-use std::thread;
-use std::{io, sync::mpsc};
-
-use config::Config;
-use crossterm::execute;
-use crossterm::style::Stylize;
-use crossterm::{
-    cursor,
-    terminal::{self, ClearType},
+use crate::{
+    display::screen::Screen,
+    input::Input,
+    state::state::{State, UIMessage},
 };
-use updates::{check_updates, fetch_updates, Blocking};
-use view::{Message, ViewPage};
-use views::{feed_view, home_view, information_view, player_view, search_channel_view};
-use yt::{Channel, Channels};
 
-use crate::loading::run_while_loading;
-use crate::view::{LastSearch, PlayType};
-use crate::views::{search_video_view, watch_later_view};
-use crate::yt::{fetch_more_videos, VideoWatchLater};
+pub mod data;
+pub mod display;
+pub mod external;
+pub mod finder;
+pub mod input;
+pub mod log;
+pub mod pages;
+pub mod process;
+pub mod state;
+pub mod storage;
+pub mod time;
+pub mod view;
 
-mod cache;
-mod config;
-mod finder;
-mod loading;
-mod log;
-mod mpv;
-mod page;
-mod search;
-mod updates;
-mod utilities;
-mod view;
-mod views;
-mod yt;
-
-pub struct AppState {
-    channels: Channels,
-    view: ViewPage,
-    root_dir: Option<PathBuf>,
-    last_search: Option<LastSearch>,
-    watch_later: Vec<VideoWatchLater>,
-    tx: mpsc::Sender<Channel>,
-    rx: mpsc::Receiver<Channel>,
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        let channels_cached = cache::fetch_cached_channels();
-        let (tx, rx) = mpsc::channel::<Channel>();
-
-        if let Some(channels_cached) = channels_cached {
-            AppState {
-                channels: Channels::new(&channels_cached),
-                view: ViewPage::Home,
-                root_dir: cache::data_directory().ok(),
-                last_search: None,
-                watch_later: cache::fetch_watch_later_videos(),
-                tx,
-                rx,
-            }
-        } else {
-            AppState {
-                channels: Channels::default(),
-                view: ViewPage::SearchChannels,
-                root_dir: cache::data_directory().ok(),
-                watch_later: cache::fetch_watch_later_videos(),
-                last_search: None,
-                tx,
-                rx,
-            }
-        }
-    }
-}
-
-fn program_installed(command: &str) -> bool {
-    Command::new(command).arg("--version").output().is_ok()
-}
-
-fn main() {
-    thread::spawn(|| {
-        if !program_installed("mpv") {
-            log::err_and_exit("mpv must be installed and locatable on your PATH.\nFor help, visit https://github.com/nate-craft/yt-feeds".red());
-        }
-
-        if !program_installed("yt-dlp") {
-            log::err_and_exit("yt-dlp must be installed and locatable on your PATH.\nFor help, visit https://github.com/nate-craft/yt-feeds".red());
-        }
-    });
-
-    let config = match Config::load_or_default() {
-        Ok(loaded) => loaded,
-        Err(err) => {
-            log::err_and_exit(format!(
-                "Could not retrieve local config directory. \nError: {:?}",
-                err
-            ));
-        }
-    };
-
-    let mut state = AppState::default();
-
-    // Auto update on startup
-    if config.refresh_on_start {
-        updates::fetch_updates(
-            state.tx.clone(),
-            state
-                .channels
-                .iter()
-                .map(|channel| channel.into())
-                .collect(),
-            config.videos_per_channel,
-        );
-        try_cache_channels(&state.channels);
-    }
+fn main() -> anyhow::Result<()> {
+    let mut state = State::new()?;
+    Screen::clear();
+    Input::typing_disable()?;
+    state.view_display();
 
     loop {
-        // check for auto updates in background of each loop
-        if config.refresh_on_start {
-            check_updates(&state.rx, &mut state.channels, Blocking::NoWait);
-        }
+        let input = Input::handle_input(&state, state.page())?;
 
-        let message: Message = match state.view {
-            ViewPage::Home => home_view::show(&state.channels),
-            ViewPage::SearchChannels => search_channel_view::show(&state.channels, &config),
-            ViewPage::SearchVideos => search_video_view::show(&config, state.last_search.as_ref()),
-            ViewPage::WatchLater => watch_later_view::show(&state.watch_later),
-            ViewPage::Refreshing(ref last_view) => last_view.as_ref().clone().into(),
-            ViewPage::MixedFeed(last_index) => feed_view::show_mixed(&state.channels, last_index),
-            ViewPage::ChannelFeed(channel_index, last_index) => {
-                feed_view::show_channel(channel_index, &state.channels, last_index)
+        match state.handle_message(input)? {
+            UIMessage::Display => {
+                state.view_build()?;
+                state.set_error(None);
+                state.view_display();
             }
-            ViewPage::Play(ref play_type, ref last_view) => player_view::show(
-                &state.channels,
-                &state.watch_later,
-                play_type,
-                last_view,
-                &config,
-            ),
-            ViewPage::Information(video_index, ref last_view) => {
-                information_view::show(&state.channels, video_index, last_view.clone())
+            UIMessage::InvalidInput => {
+                state.view_build()?;
+                state.set_error(Some("Invalid input".to_owned()));
+                state.view_display();
             }
-        };
-
-        handle_message(message, &mut state, &config);
-    }
-}
-
-fn handle_message(message: Message, state: &mut AppState, config: &Config) {
-    match message {
-        Message::Home => {
-            state.last_search = None;
-            state.view = ViewPage::Home
-        }
-        Message::MixedFeed(last_index) => state.view = ViewPage::MixedFeed(last_index),
-        Message::ChannelFeed(channel_index, last_index) => {
-            state.view = ViewPage::ChannelFeed(channel_index, last_index)
-        }
-        Message::WatchLater => state.view = ViewPage::WatchLater,
-        Message::SearchChannels => state.view = ViewPage::SearchChannels,
-        Message::SearchVideos => state.view = ViewPage::SearchVideos,
-        Message::SearchVideosClean => {
-            state.view = ViewPage::SearchVideos;
-            state.last_search = None;
-        }
-        Message::WatchLaterRemove(index) => {
-            state.view = ViewPage::WatchLater;
-            state.watch_later.remove(index);
-            try_cache_watch_later_all(&state);
-        }
-        Message::WatchLaterAdd(video_info, last_view) => {
-            state.view = (*last_view).clone();
-            state.watch_later.push(video_info);
-            try_cache_watch_later_all(&state);
-        }
-        Message::Play(play_type) => {
-            if let PlayType::New(_, cached_search) = &play_type {
-                state.last_search = cached_search.clone();
+            UIMessage::Move(page) => {
+                state.move_to(page)?;
+                state.view_display();
             }
-            state.view = ViewPage::Play(play_type, Rc::new(state.view.clone()));
-        }
-        Message::Played(view_page, video_index, progress) => {
-            state.view = view_page.as_ref().to_owned();
-
-            // do not cache single searched video playing
-            let Some(video_index) = video_index else {
-                return;
-            };
-
-            // save progress from played
-            let channel = state.channels.channel_mut(video_index.into()).unwrap();
-            channel.video_mut(video_index).unwrap().progress = progress;
-            let channel = state.channels.channel(video_index.into()).unwrap();
-
-            // cache singular channel
-            try_cache_watch_later(&state, &channel);
-        }
-        Message::Information(video_index, view_page) => {
-            state.view = ViewPage::Information(video_index, view_page);
-        }
-        Message::MoreInformation(video_index, view_page, new_description) => {
-            let channel = state.channels.channel_mut(video_index.into()).unwrap();
-            let video = channel.video_mut(video_index).unwrap();
-            video.description = new_description;
-            state.view = ViewPage::Information(video_index, view_page);
-        }
-        Message::Subscribe(channel) => {
-            state.channels.push(channel);
-            state.view = ViewPage::Home;
-            try_cache_channels(&state.channels);
-        }
-        Message::Unsubscribe(channel_index) => {
-            state.channels.remove(*channel_index);
-            state.view = ViewPage::Home;
-            try_cache_channels(&state.channels);
-        }
-        Message::Refresh(last_view) => {
-            state.view = ViewPage::Refreshing(Rc::new(last_view.clone()));
-            if let ViewPage::ChannelFeed(channel_index, _) = last_view {
-                let channel = state.channels.channel(channel_index).unwrap();
-                fetch_updates(
-                    state.tx.clone(),
-                    vec![channel.into()],
-                    config.videos_per_channel,
-                );
-                check_updates(&state.rx, &mut state.channels, Blocking::WaitForN(1));
-            } else {
-                fetch_updates(
-                    state.tx.clone(),
-                    state
-                        .channels
-                        .iter()
-                        .map(|channel| channel.into())
-                        .collect(),
-                    config.videos_per_channel,
-                );
-
-                let number_updates = state.channels.len();
-                check_updates(
-                    &state.rx,
-                    &mut state.channels,
-                    Blocking::WaitForN(number_updates),
-                );
-            }
-            try_cache_channels(&state.channels);
-        }
-        Message::Quit => {
-            clear_screen();
-            process::exit(0);
-        }
-        Message::MoreVideos(channel_index, view_page, video_count, last_viewed_index) => {
-            let channel = state.channels.channel_mut(channel_index).unwrap();
-            let name = channel.name.clone();
-
-            let success = run_while_loading(
-                || fetch_more_videos(config, video_count, channel),
-                move || {
-                    println!(
-                        "{}{}\n",
-                        name.clone().cyan().bold(),
-                        "'s - Feed".cyan().bold()
-                    );
-                    print!(
-                        "{} {}",
-                        "Fetching more videos for ".green(),
-                        name.clone().yellow()
-                    );
-                },
-            );
-
-            if success {
-                try_cache_channels(&state.channels);
-            }
-
-            state.view = match view_page {
-                ViewPage::ChannelFeed(channel_index, _) => {
-                    ViewPage::ChannelFeed(channel_index, Some(last_viewed_index))
-                }
-                ViewPage::MixedFeed(_) => ViewPage::MixedFeed(Some(last_viewed_index)),
-                _ => panic!(),
-            }
+            UIMessage::Quit => break,
         }
     }
-}
 
-fn try_cache_channels(channels: &Channels) {
-    if let Err(err) = cache::cache_channels(channels) {
-        log::err(format!(
-            "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-            err
-        ));
-    }
-}
+    Input::typing_enable()?;
+    Screen::clear();
 
-fn try_cache_watch_later(state: &AppState, channel: &Channel) {
-    if let Some(root) = &state.root_dir {
-        if let Err(err) = cache::cache_videos(root, &channel.id, &channel.videos) {
-            log::err(format!(
-                "Could not retrieve local data directory. Caching cannot be enabled!\nError: {:?}",
-                err
-            ));
-        }
-    }
-}
-
-fn try_cache_watch_later_all(state: &AppState) {
-    if let Some(root) = &state.root_dir {
-        if let Err(err) = cache::cache_watch_later(root, &state.watch_later) {
-            log::err(format!(
-                "Could not cache watch_history. Progress will not be saved!\nError: {:?}",
-                err
-            ));
-        }
-    }
-}
-
-fn clear_screen() {
-    execute!(
-        io::stdout(),
-        terminal::Clear(ClearType::Purge),
-        terminal::Clear(ClearType::All),
-        cursor::MoveTo(0, 0)
-    )
-    .expect("Could not clear screen")
+    Ok(())
 }
